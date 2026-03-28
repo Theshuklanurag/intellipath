@@ -8,6 +8,9 @@ const { generalLimiter } = require('./middleware/rateLimiter')
 
 const app = express()
 
+// ✅ ADD THIS — Required for Render/Heroku/any proxy
+app.set('trust proxy', 1)
+
 // Connect Supabase
 connectDB()
 
@@ -15,20 +18,9 @@ connectDB()
 app.use(helmet())
 
 // CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  process.env.CLIENT_URL,
-  /\.vercel\.app$/,
-].filter(Boolean)
-
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true)
-    const allowed = allowedOrigins.some(o =>
-      typeof o === 'string' ? o === origin : o.test(origin)
-    )
-    if (allowed) return callback(null, true)
-    callback(null, true) // Allow all during initial setup
+    callback(null, true)
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -45,8 +37,9 @@ app.use('/api', generalLimiter)
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
+// Health check ← ADD THIS TOO
 app.get('/', (req, res) => {
-  res.json({ message: 'IntelliPath API is live!', status: 'OK' })
+  res.json({ status: 'OK', message: 'IntelliPath API is live!' })
 })
 
 // Routes
