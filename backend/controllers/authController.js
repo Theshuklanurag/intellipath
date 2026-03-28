@@ -136,3 +136,63 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ msg: 'Server error' })
   }
 }
+
+exports.oauthLogin = async (req, res) => {
+  const { email, fullName, role, supabaseId, provider } = req.body
+
+  try {
+    // Check if user exists
+    let { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
+
+    if (user) {
+      // User exists — log them in
+      const payload = { user: { id: user.id, role: user.role } }
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE || '5h'
+      })
+      return res.json({
+        token,
+        user: { id: user.id, fullName: user.full_name, email: user.email, role: user.role }
+      })
+    }
+
+    // New OAuth user — need role selection
+    if (!role) {
+      return res.json({ needsRole: true })
+    }
+
+    // Create new user
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert([{
+        full_name: fullName || email.split('@')[0],
+        email,
+        password: supabaseId || 'oauth_user',
+        role: role || 'student',
+        is_active: true,
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await supabase.from('profiles').insert([{ user_id: newUser.id }])
+
+    const payload = { user: { id: newUser.id, role: newUser.role } }
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE || '5h'
+    })
+
+    res.json({
+      token,
+      user: { id: newUser.id, fullName: newUser.full_name, email: newUser.email, role: newUser.role }
+    })
+  } catch (err) {
+    console.error('OAuth error:', err.message)
+    res.status(500).json({ msg: 'OAuth login failed' })
+  }
+}

@@ -11,6 +11,7 @@ try {
   const validate = require('../middleware/validate')
   const { authLimiter } = require('../middleware/rateLimiter')
 
+  router.post('/oauth', authController.oauthLogin)
   router.post('/signup', authLimiter, authController.signupValidation, validate, authController.signup)
   router.post('/login', authLimiter, authController.loginValidation, validate, authController.login)
   router.get('/me', require('../middleware/auth'), authController.getMe)

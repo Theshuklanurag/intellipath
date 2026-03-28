@@ -6,6 +6,8 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import TeacherDashboard from './pages/teacher/TeacherDashboard'
+import OAuthCallback from './pages/OAuthCallback'
+import OAuthRolePage from './pages/OAuthRolePage'
 
 function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth()
@@ -25,6 +27,8 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/oauth-callback" element={<OAuthCallback />} />
+      <Route path="/oauth-role" element={<OAuthRolePage />} />
       <Route path="/student/*" element={
         <ProtectedRoute role="student">
           <StudentDashboard />
