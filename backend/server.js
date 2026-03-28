@@ -68,3 +68,28 @@ app.listen(PORT, () => {
   console.log(`🚀 IntelliPath Server running on port ${PORT}`)
   console.log(`🌍 Environment: ${process.env.NODE_ENV}`)
 })
+// Routes with error catching
+try {
+  app.use('/api/auth', require('./routes/auth'))
+  console.log('✅ Auth routes loaded')
+} catch(e) { console.error('❌ Auth routes failed:', e.message) }
+
+try {
+  app.use('/api/ai', require('./routes/aiRoutes'))
+  console.log('✅ AI routes loaded')
+} catch(e) { console.error('❌ AI routes failed:', e.message) }
+
+try {
+  app.use('/api/academic', require('./routes/academicRoutes'))
+  console.log('✅ Academic routes loaded')
+} catch(e) { console.error('❌ Academic routes failed:', e.message) }
+
+try {
+  app.use('/api/profile', require('./routes/profileRoutes'))
+  console.log('✅ Profile routes loaded')
+} catch(e) { console.error('❌ Profile routes failed:', e.message) }
+
+try {
+  app.use('/api/teacher', require('./routes/teacher'))
+  console.log('✅ Teacher routes loaded')
+} catch(e) { console.error('❌ Teacher routes failed:', e.message) }
