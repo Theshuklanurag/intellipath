@@ -3,27 +3,26 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const path = require('path')
-const { connectDB } = require('./config/db')
-const { generalLimiter } = require('./middleware/rateLimiter')
 
 const app = express()
 
-// ✅ ADD THIS — Required for Render/Heroku/any proxy
+// ✅ MUST be first — before anything else
 app.set('trust proxy', 1)
+
+const { connectDB } = require('./config/db')
+const { generalLimiter } = require('./middleware/rateLimiter')
 
 // Connect Supabase
 connectDB()
 
 // Security
-app.use(helmet())
+app.use(helmet({ contentSecurityPolicy: false }))
 
-// CORS
+// CORS — allow all origins during initial setup
 app.use(cors({
-  origin: function(origin, callback) {
-    callback(null, true)
-  },
+  origin: true,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
@@ -37,29 +36,30 @@ app.use('/api', generalLimiter)
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-// Health check ← ADD THIS TOO
+// Root health check
 app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'IntelliPath API is live!' })
 })
 
-// Routes
-app.use('/api/auth', require('./routes/auth'))
-app.use('/api/ai', require('./routes/aiRoutes'))
-app.use('/api/academic', require('./routes/academicRoutes'))
-app.use('/api/profile', require('./routes/profileRoutes'))
-app.use('/api/teacher', require('./routes/teacher'))
-
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'IntelliPath API running', timestamp: new Date() })
 })
 
-// 404
-app.use((req, res) => res.status(404).json({ msg: 'Route not found' }))
+// Routes
+app.use('/api/auth',     require('./routes/auth'))
+app.use('/api/ai',       require('./routes/aiRoutes'))
+app.use('/api/academic', require('./routes/academicRoutes'))
+app.use('/api/profile',  require('./routes/profileRoutes'))
+app.use('/api/teacher',  require('./routes/teacher'))
 
-// Error handler
+// 404
+app.use((req, res) => {
+  res.status(404).json({ msg: 'Route not found' })
+})
+
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message)
+  console.error('Server error:', err.message)
   res.status(err.status || 500).json({ msg: err.message || 'Internal server error' })
 })
 
@@ -68,28 +68,3 @@ app.listen(PORT, () => {
   console.log(`🚀 IntelliPath Server running on port ${PORT}`)
   console.log(`🌍 Environment: ${process.env.NODE_ENV}`)
 })
-// Routes with error catching
-try {
-  app.use('/api/auth', require('./routes/auth'))
-  console.log('✅ Auth routes loaded')
-} catch(e) { console.error('❌ Auth routes failed:', e.message) }
-
-try {
-  app.use('/api/ai', require('./routes/aiRoutes'))
-  console.log('✅ AI routes loaded')
-} catch(e) { console.error('❌ AI routes failed:', e.message) }
-
-try {
-  app.use('/api/academic', require('./routes/academicRoutes'))
-  console.log('✅ Academic routes loaded')
-} catch(e) { console.error('❌ Academic routes failed:', e.message) }
-
-try {
-  app.use('/api/profile', require('./routes/profileRoutes'))
-  console.log('✅ Profile routes loaded')
-} catch(e) { console.error('❌ Profile routes failed:', e.message) }
-
-try {
-  app.use('/api/teacher', require('./routes/teacher'))
-  console.log('✅ Teacher routes loaded')
-} catch(e) { console.error('❌ Teacher routes failed:', e.message) }

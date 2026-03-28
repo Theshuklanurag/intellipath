@@ -1,30 +1,30 @@
 const rateLimit = require('express-rate-limit')
 
-// General API limiter
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   message: { msg: 'Too many requests, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // ✅ Fix for Render/proxy
 })
 
-// Auth routes limiter (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   message: { msg: 'Too many login attempts, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // ✅ Fix for Render/proxy
 })
 
-// AI routes limiter
 const aiLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
+  windowMs: 1 * 60 * 1000,
   max: 20,
   message: { msg: 'AI rate limit reached, please wait a moment' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false }, // ✅ Fix for Render/proxy
 })
 
 module.exports = { generalLimiter, authLimiter, aiLimiter }
