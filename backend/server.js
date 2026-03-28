@@ -45,6 +45,10 @@ app.use('/api', generalLimiter)
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
+app.get('/', (req, res) => {
+  res.json({ message: 'IntelliPath API is live!', status: 'OK' })
+})
+
 // Routes
 app.use('/api/auth', require('./routes/auth'))
 app.use('/api/ai', require('./routes/aiRoutes'))
