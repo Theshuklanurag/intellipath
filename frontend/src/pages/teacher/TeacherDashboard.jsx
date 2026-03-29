@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import {
+  getMarks, addMark, deleteMark,
+  getAttendance, bulkAttendance,
+  getSyllabus, addSyllabusItem, updateSyllabus, deleteSyllabus,
+  getAnnouncements, addAnnouncement, deleteAnnouncement
+} from '../../services/api'
+
+import {
   LayoutDashboard, Users, Calendar, CheckSquare, Award,
   FileText, BookMarked, ClipboardList, Bell, BarChart2,
   Wand2, User, LogOut, Zap, Menu, X, Plus, Trash2,
@@ -505,6 +512,18 @@ function StudentsPage() {
   )
 }
 
+// Add at top of AttendancePage, MarksPage, SyllabusPage, AnnouncementsPage
+useEffect(() => {
+  // For AttendancePage:
+  getAttendance().then(r => setAttendance(r.data || [])).catch(() => {})
+  // For MarksPage:
+  getMarks().then(r => setMarks(r.data || [])).catch(() => {})
+  // For SyllabusPage:
+  getSyllabus().then(r => setSyllabus(r.data || [])).catch(() => {})
+  // For AnnouncementsPage:
+  getAnnouncements().then(r => setAnnouncements(r.data || [])).catch(() => {})
+}, [])
+
 // ─── ATTENDANCE PAGE ──────────────────────────────────────
 function AttendancePage() {
   const [students, setStudents] = useState([])
@@ -519,21 +538,23 @@ function AttendancePage() {
     getTeacherData().then(r => setStudents(r.data?.students || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  const save = () => {
-    if (!subject) return toast.error('Enter subject')
-    const records = students.map(s => ({
-      id: Date.now() + Math.random(),
-      studentId: s.id,
-      studentName: s.name,
-      subject,
-      date,
-      status: session[s.id] || 'absent'
-    }))
-    const updated = [...attendance.filter(a => !(a.date === date && a.subject === subject)), ...records]
-    setAttendance(updated)
-    lsSet('ip_teacher_attendance', updated)
-    toast.success(`Attendance saved for ${subject} — ${date}`)
-  }
+ // Replace the save() function
+const save = async () => {
+  if (!subject) return toast.error('Enter subject')
+  const records = students.map(s => ({
+    student_id: s.id,
+    student_name: s.name,
+    subject,
+    date,
+    status: session[s.id] || 'absent'
+  }))
+  try {
+    await bulkAttendance({ records })
+    const res = await getAttendance()
+    setAttendance(res.data || [])
+    toast.success(`Attendance saved!`)
+  } catch { toast.error('Failed to save') }
+}
 
   const markAll = (status) => {
     const s = {}
@@ -741,15 +762,23 @@ function MarksPage() {
     getTeacherData().then(r => setStudents(r.data?.students || [])).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  const saveMark = () => {
-    if (!form.studentId || !form.grade || !form.subject) return toast.error('Fill student, subject and grade')
-    const newMark = { ...form, id: Date.now(), date: new Date().toLocaleDateString('en-IN') }
-    const updated = [...marks, newMark]
-    setMarks(updated)
-    lsSet('ip_teacher_marks', updated)
+ const saveMark = async () => {
+  if (!form.studentId || !form.grade || !form.subject) return toast.error('Fill required fields')
+  try {
+    const res = await addMark({
+      studentId: form.studentId,
+      studentName: form.studentName,
+      subject: form.subject,
+      examName: form.examName,
+      grade: form.grade,
+      maxGrade: form.maxGrade,
+      remarks: form.remarks
+    })
+    setMarks(prev => [res.data, ...prev])
     setForm(f => ({ ...f, grade: '', examName: '', remarks: '' }))
     toast.success('Mark recorded!')
-  }
+  } catch { toast.error('Failed') }
+}
 
   const deleteMark = (id) => {
     const updated = marks.filter(m => m.id !== id)
@@ -1138,20 +1167,21 @@ function SyllabusPage() {
   const [editId, setEditId] = useState(null)
   const [filterSubject, setFilterSubject] = useState('')
 
-  const save = () => {
-    if (!form.subject || !form.topic) return toast.error('Fill subject and topic')
-    let updated
+  const save = async () => {
+  if (!form.subject || !form.topic) return toast.error('Fill subject and topic')
+  try {
     if (editId) {
-      updated = syllabus.map(s => s.id === editId ? { ...form, id: editId } : s)
+      const res = await updateSyllabus(editId, form)
+      setSyllabus(prev => prev.map(s => s.id === editId ? res.data : s))
       setEditId(null)
     } else {
-      updated = [...syllabus, { ...form, id: Date.now() }]
+      const res = await addSyllabusItem(form)
+      setSyllabus(prev => [...prev, res.data])
     }
-    setSyllabus(updated)
-    lsSet('ip_teacher_syllabus', updated)
     setForm({ subject: '', unit: '', topic: '', coverage: 0, notes: '', status: 'pending' })
     toast.success(editId ? 'Updated!' : 'Topic added!')
-  }
+  } catch { toast.error('Failed') }
+}
 
   const startEdit = (s) => { setForm(s); setEditId(s.id) }
   const del = (id) => { const u = syllabus.filter(s => s.id !== id); setSyllabus(u); lsSet('ip_teacher_syllabus', u) }
@@ -1561,15 +1591,15 @@ function AnnouncementsPage() {
   const [priority, setPriority] = useState('normal')
   const [announcements, setAnnouncements] = useState(ls('ip_announcements', []))
 
-  const post = () => {
-    if (!title.trim() || !message.trim()) return toast.error('Fill title and message')
-    const a = { id: Date.now(), title, message, priority, date: new Date().toLocaleString('en-IN') }
-    const updated = [a, ...announcements]
-    setAnnouncements(updated)
-    lsSet('ip_announcements', updated)
+const post = async () => {
+  if (!title.trim() || !message.trim()) return toast.error('Fill title and message')
+  try {
+    const res = await addAnnouncement({ title, message, priority })
+    setAnnouncements(prev => [res.data, ...prev])
     setTitle(''); setMessage('')
     toast.success('Announcement posted!')
-  }
+  } catch { toast.error('Failed') }
+}
 
   const del = (id) => { const u = announcements.filter(a => a.id !== id); setAnnouncements(u); lsSet('ip_announcements', u) }
 

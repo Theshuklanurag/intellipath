@@ -68,4 +68,35 @@ export const generateLessonPlan = (data) => API.post('/teacher/lesson-plan', dat
 export const addAssignment = (data) => API.post('/teacher/assignment', data)
 export const addPlaylist = (data) => API.post('/teacher/playlist', data)
 
+// ─── STUDENT DATA ──────────────────────────────────────
+export const getStudyLogs    = ()       => API.get('/data/study-logs')
+export const addStudyLog     = (data)   => API.post('/data/study-logs', data)
+export const deleteStudyLog  = (id)     => API.delete(`/data/study-logs/${id}`)
+
+export const getTargets      = ()       => API.get('/data/targets')
+export const addTarget       = (data)   => API.post('/data/targets', data)
+export const deleteTarget    = (id)     => API.delete(`/data/targets/${id}`)
+
+export const getProblems     = ()       => API.get('/data/problems')
+export const addProblem      = (data)   => API.post('/data/problems', data)
+export const updateProblem   = (id, d)  => API.put(`/data/problems/${id}`, d)
+export const deleteProblem   = (id)     => API.delete(`/data/problems/${id}`)
+
+// ─── TEACHER DATA ──────────────────────────────────────
+export const getMarks        = ()       => API.get('/data/marks')
+export const addMark         = (data)   => API.post('/data/marks', data)
+export const deleteMark      = (id)     => API.delete(`/data/marks/${id}`)
+
+export const getAttendance   = ()       => API.get('/data/attendance')
+export const bulkAttendance  = (data)   => API.post('/data/attendance/bulk', data)
+
+export const getSyllabus     = ()       => API.get('/data/syllabus')
+export const addSyllabusItem = (data)   => API.post('/data/syllabus', data)
+export const updateSyllabus  = (id, d)  => API.put(`/data/syllabus/${id}`, d)
+export const deleteSyllabus  = (id)     => API.delete(`/data/syllabus/${id}`)
+
+export const getAnnouncements   = ()     => API.get('/data/announcements')
+export const addAnnouncement    = (data) => API.post('/data/announcements', data)
+export const deleteAnnouncement = (id)   => API.delete(`/data/announcements/${id}`)
+
 export default API

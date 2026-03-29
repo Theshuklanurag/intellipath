@@ -51,6 +51,7 @@ app.use('/api/ai',       require('./routes/aiRoutes'))
 app.use('/api/academic', require('./routes/academicRoutes'))
 app.use('/api/profile',  require('./routes/profileRoutes'))
 app.use('/api/teacher',  require('./routes/teacher'))
+app.use('/api/data', require('./routes/dataRoutes'))
 
 // 404
 app.use((req, res) => {
