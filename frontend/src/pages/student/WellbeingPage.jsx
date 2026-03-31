@@ -13,6 +13,7 @@ import {
 import { renderMarkdown } from '../../utils/helpers'
 import API from '../../services/api'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 const COLORS = ['#00D4FF', '#9B59FF', '#00FF88', '#FFB800', '#FF006E', '#FF4D6A']
 
@@ -604,6 +605,9 @@ Provide:
           )}
         </div>
       )}
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

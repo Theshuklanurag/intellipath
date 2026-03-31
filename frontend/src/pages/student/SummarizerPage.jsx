@@ -3,6 +3,7 @@ import { FileText, Wand2, Copy, Trash2 } from 'lucide-react'
 import { summarize } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function SummarizerPage() {
   const [text, setText] = useState('')
@@ -84,6 +85,9 @@ export default function SummarizerPage() {
           </div>
         </div>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

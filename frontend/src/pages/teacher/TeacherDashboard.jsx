@@ -131,7 +131,22 @@ function ERPDashboard() {
     }))
     .sort((a, b) => b.avg - a.avg)
     .slice(0, 5)
+  // Add to ERPDashboard component
+const [requests, setRequests] = useState([])
 
+useEffect(() => {
+  API.get('/data/connections/requests')
+    .then(r => setRequests((r.data || []).filter(c => c.status === 'pending')))
+    .catch(() => {})
+}, [])
+
+const handleRequest = async (id, status) => {
+  try {
+    await API.put(`/data/connections/${id}`, { status })
+    setRequests(prev => prev.filter(r => r.id !== id))
+    toast.success(status === 'accepted' ? 'Connection accepted!' : 'Request declined')
+  } catch { toast.error('Failed') }
+}
   return (
     <div className="p-5 max-w-7xl mx-auto">
       {/* Welcome */}
@@ -174,6 +189,42 @@ function ERPDashboard() {
           )
         })}
       </div>
+      {requests.length > 0 && (
+  <div className="glass rounded-2xl p-5 mb-6">
+    <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+      🔔 Pending Connection Requests ({requests.length})
+    </h3>
+    <div className="space-y-3">
+      {requests.map(req => (
+        <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #00D4FF, #9B59FF)', color: '#000' }}>
+            {req.student?.full_name?.[0]?.toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>
+              {req.student?.full_name}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {req.message || 'Wants to connect with you'}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={() => handleRequest(req.id, 'accepted')}
+              className="btn-primary text-xs" style={{ padding: '6px 12px' }}>
+              Accept
+            </button>
+            <button onClick={() => handleRequest(req.id, 'rejected')}
+              className="btn-danger text-xs" style={{ padding: '6px 12px' }}>
+              Decline
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">

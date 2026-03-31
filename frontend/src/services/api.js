@@ -99,4 +99,26 @@ export const getAnnouncements   = ()     => API.get('/data/announcements')
 export const addAnnouncement    = (data) => API.post('/data/announcements', data)
 export const deleteAnnouncement = (id)   => API.delete(`/data/announcements/${id}`)
 
+// ─── PROFILE ──────────────────────────────────────────────
+export const getStudentProfile  = ()     => API.get('/profile')
+export const updateStudentProfile = (d)  => API.put('/profile', d)
+
+// ─── DOUBTS ───────────────────────────────────────────────
+export const getDoubts    = ()     => API.get('/data/doubts')
+export const addDoubt     = (d)    => API.post('/data/doubts', d)
+export const answerDoubt  = (id,d) => API.put(`/data/doubts/${id}/answer`, d)
+export const deleteDoubt  = (id)   => API.delete(`/data/doubts/${id}`)
+
+// ─── TEACHER CONNECT ──────────────────────────────────────
+export const getAvailableTeachers = (subject) =>
+  API.get(`/data/teachers/available${subject ? `?subject=${subject}` : ''}`)
+export const getConnections       = ()         => API.get('/data/connections')
+export const getConnectionRequests= ()         => API.get('/data/connections/requests')
+export const connectToTeacher     = (d)        => API.post('/data/connections', d)
+export const updateConnection     = (id, d)    => API.put(`/data/connections/${id}`, d)
+
+// ─── MESSAGES ─────────────────────────────────────────────
+export const getMessages   = (connId) => API.get(`/data/messages/${connId}`)
+export const sendMessage   = (d)      => API.post('/data/messages', d)
+
 export default API

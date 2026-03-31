@@ -3,6 +3,7 @@ import { Camera, Upload, Wand2, X } from 'lucide-react'
 import { imageDoubtSolver } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function ImageDoubtPage() {
   const [image, setImage] = useState(null)
@@ -110,6 +111,9 @@ export default function ImageDoubtPage() {
           </div>
         </div>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

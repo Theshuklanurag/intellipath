@@ -23,6 +23,48 @@ import ResumePage from './ResumePage'
 import MockInterviewPage from './MockInterviewPage'
 import WellbeingPage from './WellbeingPage'
 import ImageDoubtPage from './ImageDoubtPage'
+import ProfilePage        from './ProfilePage'
+import TeacherConnectPage from './TeacherConnectPage'
+
+const NAV_GROUPS = [
+  {
+    label: 'Overview',
+    items: [
+      { path: '',         icon: LayoutDashboard, label: 'Dashboard'        },
+      { path: 'progress', icon: Activity,        label: 'My Progress'      },
+      { path: 'profile',  icon: User,            label: 'My Profile'       },
+    ]
+  },
+  {
+    label: 'AI Study Tools',
+    items: [
+      { path: 'chatbot',    icon: MessageSquare, label: 'AI Chatbot'         },
+      { path: 'summarizer', icon: FileText,      label: 'Summarizer'         },
+      { path: 'notes',      icon: BookOpen,      label: 'Notes Generator'    },
+      { path: 'flashcards', icon: Layers,        label: 'Flashcards'         },
+      { path: 'quiz',       icon: HelpCircle,    label: 'Quiz Arena'         },
+      { path: 'timetable',  icon: Calendar,      label: 'AI Timetable'       },
+      { path: 'image-doubt',icon: Camera,        label: 'Image Doubt Solver' },
+    ]
+  },
+  {
+    label: 'Career',
+    items: [
+      { path: 'career',    icon: Target,    label: 'Career Guidance'   },
+      { path: 'skill-gap', icon: Briefcase, label: 'Skill Gap Analyzer'},
+      { path: 'resume',    icon: FileText,  label: 'Resume Builder'    },
+      { path: 'interview', icon: Mic,       label: 'Mock Interview'    },
+    ]
+  },
+  {
+    label: 'Academics',
+    items: [
+      { path: 'academic',         icon: BarChart2,    label: 'Academic Tracker'   },
+      { path: 'wellbeing',        icon: Heart,        label: 'Wellbeing'           },
+      { path: 'teacher-connect',  icon: Users,        label: 'Connect to Teacher'  },
+    ]
+  }
+]
 
 const NAV_ITEMS = [
   { path: '', icon: LayoutDashboard, label: 'Dashboard' },
@@ -144,6 +186,8 @@ export default function StudentDashboard() {
             <Route path="/interview" element={<MockInterviewPage />} />
             <Route path="/wellbeing" element={<WellbeingPage />} />
             <Route path="/image-doubt" element={<ImageDoubtPage />} />
+            <Route path="/profile"          element={<ProfilePage />} />
+            <Route path="/teacher-connect"  element={<TeacherConnectPage />} />
           </Routes>
         </div>
       </main>

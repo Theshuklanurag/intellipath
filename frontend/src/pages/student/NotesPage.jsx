@@ -3,6 +3,7 @@ import { BookOpen, Wand2, Copy, Download } from 'lucide-react'
 import { generateNotes, generateQuestions } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function NotesPage() {
   const [text, setText] = useState('')
@@ -75,6 +76,9 @@ export default function NotesPage() {
           </div>
         </div>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

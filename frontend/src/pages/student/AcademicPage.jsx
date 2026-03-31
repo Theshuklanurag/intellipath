@@ -3,6 +3,7 @@ import { BarChart2, Plus, Check, X, BookOpen } from 'lucide-react'
 import { getAcademicDetails, updateAcademicDetails, addSubject, addGrade, markAttendance } from '../../services/api'
 import { calcAverage } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function AcademicPage() {
   const [data, setData] = useState(null)
@@ -154,6 +155,9 @@ export default function AcademicPage() {
           <button onClick={saveDetails} className="btn-glow w-full py-3 rounded-xl text-white font-dm font-medium">Save Details</button>
         </div>
       )}
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

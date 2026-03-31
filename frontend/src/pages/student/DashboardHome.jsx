@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
 import { getAcademicDetails } from '../../services/api'
+import { getStudyLogs } from '../../services/api'
 
 const QUICK_TOOLS = [
   { to: 'chatbot',    icon: MessageSquare, label: 'AI Chatbot',    color: '#00D4FF', bg: 'rgba(0,212,255,0.1)' },
@@ -47,26 +48,38 @@ const CustomTooltip = ({ active, payload, label }) => {
 export default function DashboardHome() {
   const { user } = useAuth()
   const [academic, setAcademic] = useState(null)
-  const [studyHours, setStudyHours] = useState([
-    { day: 'Mon', hours: 3 }, { day: 'Tue', hours: 5 }, { day: 'Wed', hours: 2 },
-    { day: 'Thu', hours: 6 }, { day: 'Fri', hours: 4 }, { day: 'Sat', hours: 7 }, { day: 'Sun', hours: 1 },
-  ])
+
   const [gradeData, setGradeData] = useState([])
 
   useEffect(() => {
-    getAcademicDetails()
-      .then(r => {
-        setAcademic(r.data)
-        if (r.data?.subjects?.length > 0) {
-          setGradeData(r.data.subjects.map(s => ({
-            name: s.name?.slice(0, 8),
-            grade: s.grades?.length > 0 ? Math.round(s.grades.reduce((a, b) => a + b.grade, 0) / s.grades.length) : 0,
-            attendance: s.attendance || 0,
-          })))
-        }
-      })
-      .catch(() => {})
-  }, [])
+  Promise.all([getAcademicDetails(), getStudyLogs()])
+    .then(([ac, sl]) => {
+      setAcademic(ac.data)
+      // Build real chart data from study logs
+      const logs = sl.data || []
+      const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+      const realHours = days.map(day => ({
+        day,
+        hours: logs
+          .filter(l => {
+            const d = new Date(l.created_at)
+            return d.toLocaleDateString('en-US', { weekday: 'short' }) === day
+          })
+          .reduce((a, b) => a + Number(b.hours), 0)
+      }))
+      setStudyHours(realHours)
+      if (ac.data?.subjects?.length > 0) {
+        setGradeData(ac.data.subjects.map(s => ({
+          name: s.name?.slice(0, 8),
+          grade: s.grades?.length > 0
+            ? Math.round(s.grades.reduce((a, b) => a + b.grade, 0) / s.grades.length)
+            : 0,
+          attendance: s.attendance || 0,
+        })))
+      }
+    })
+    .catch(() => {})
+}, [])
 
   const totalSubjects = academic?.subjects?.length || 0
   const avgGrade = gradeData.length > 0

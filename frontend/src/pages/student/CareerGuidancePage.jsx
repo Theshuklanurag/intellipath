@@ -3,6 +3,7 @@ import { Target, Wand2 } from 'lucide-react'
 import { careerGuidance } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 const FIELDS = [
   { key: 'gpa', label: 'GPA / Percentage', placeholder: 'e.g. 8.5 CGPA or 78%' },
@@ -70,6 +71,9 @@ export default function CareerGuidancePage() {
           </div>
         </div>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

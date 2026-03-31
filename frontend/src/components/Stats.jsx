@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Trophy, Zap, Award, Users } from 'lucide-react'
 
 const STATS = [
-  { value: 500, suffix: '+', label: 'Teams Beaten', sublabel: 'TechClasher 2025', icon: Trophy, color: 'text-yellow-400' },
-  { value: 32, suffix: '', label: 'AI Features', sublabel: 'Across 5 categories', icon: Zap, color: 'text-blue-400' },
-  { value: 2, suffix: ' AIs', label: 'Dual AI Engine', sublabel: 'Gemini + Groq fallback', icon: Award, color: 'text-purple-400' },
-  { value: 10, suffix: '+', label: 'Security Layers', sublabel: 'Enterprise-grade', icon: Users, color: 'text-emerald-400' },
+  { value: 500, suffix: '+', label: 'Teams Beaten',  sublabel: 'TechClasher 2025',    icon: Trophy,  color: 'text-yellow-400' },
+  { value: 32,  suffix: '',  label: 'AI Features',   sublabel: 'Across 5 categories', icon: Zap,     color: 'text-blue-400'   },
+  { value: 2,   suffix: '',  label: 'AI Models',     sublabel: 'Gemini + Groq',        icon: Award,   color: 'text-purple-400' },
+  { value: 100, suffix: '%', label: 'Free to Start', sublabel: 'No credit card',       icon: Users,   color: 'text-emerald-400'},
 ]
 
 function AnimatedCounter({ target, suffix }) {

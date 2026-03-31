@@ -240,4 +240,147 @@
     res.json({ msg: 'Deleted' })
     })
 
+    // ─── DOUBTS ───────────────────────────────────────────────
+router.get('/doubts', async (req, res) => {
+  const { data, error } = await supabase
+    .from('doubts')
+    .select('*')
+    .eq('user_id', req.user.id)
+    .order('created_at', { ascending: false })
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.post('/doubts', async (req, res) => {
+  const { page, question, fileName, fileUrl } = req.body
+  if (!question) return res.status(400).json({ msg: 'Question required' })
+  const { data, error } = await supabase
+    .from('doubts')
+    .insert([{
+      user_id: req.user.id,
+      page: page || 'General',
+      question,
+      file_name: fileName,
+      file_url: fileUrl,
+    }])
+    .select()
+    .single()
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.put('/doubts/:id/answer', async (req, res) => {
+  const { aiAnswer } = req.body
+  const { data, error } = await supabase
+    .from('doubts')
+    .update({ ai_answer: aiAnswer, status: 'answered' })
+    .eq('id', req.params.id)
+    .select()
+    .single()
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.delete('/doubts/:id', async (req, res) => {
+  await supabase.from('doubts').delete().eq('id', req.params.id).eq('user_id', req.user.id)
+  res.json({ msg: 'Deleted' })
+})
+
+// ─── TEACHER CONNECTIONS ──────────────────────────────────
+router.get('/teachers/available', async (req, res) => {
+  const { subject } = req.query
+  let query = supabase
+    .from('users')
+    .select('id, full_name, email, subject_taught')
+    .eq('role', 'teacher')
+  if (subject) query = query.ilike('subject_taught', `%${subject}%`)
+  const { data, error } = await query
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.get('/connections', async (req, res) => {
+  const { data, error } = await supabase
+    .from('teacher_connections')
+    .select(`
+      *,
+      teacher:teacher_id (id, full_name, email, subject_taught)
+    `)
+    .eq('student_id', req.user.id)
+    .order('created_at', { ascending: false })
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.get('/connections/requests', async (req, res) => {
+  const { data, error } = await supabase
+    .from('teacher_connections')
+    .select(`
+      *,
+      student:student_id (id, full_name, email)
+    `)
+    .eq('teacher_id', req.user.id)
+    .order('created_at', { ascending: false })
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.post('/connections', async (req, res) => {
+  const { teacherId, subject, message } = req.body
+  if (!teacherId) return res.status(400).json({ msg: 'Teacher ID required' })
+  const { data, error } = await supabase
+    .from('teacher_connections')
+    .upsert([{
+      student_id: req.user.id,
+      teacher_id: teacherId,
+      subject,
+      message,
+      status: 'pending'
+    }], { onConflict: 'student_id,teacher_id' })
+    .select()
+    .single()
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.put('/connections/:id', async (req, res) => {
+  const { status } = req.body
+  const { data, error } = await supabase
+    .from('teacher_connections')
+    .update({ status })
+    .eq('id', req.params.id)
+    .select()
+    .single()
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+// ─── MESSAGES ─────────────────────────────────────────────
+router.get('/messages/:connectionId', async (req, res) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .eq('connection_id', req.params.connectionId)
+    .order('created_at', { ascending: true })
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
+router.post('/messages', async (req, res) => {
+  const { receiverId, connectionId, content } = req.body
+  if (!content) return res.status(400).json({ msg: 'Content required' })
+  const { data, error } = await supabase
+    .from('messages')
+    .insert([{
+      sender_id: req.user.id,
+      receiver_id: receiverId,
+      connection_id: connectionId,
+      content
+    }])
+    .select()
+    .single()
+  if (error) return res.status(500).json({ msg: error.message })
+  res.json(data)
+})
+
     module.exports = router

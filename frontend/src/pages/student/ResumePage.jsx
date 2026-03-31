@@ -4,6 +4,7 @@ import { buildResume } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function ResumePage() {
   const { user } = useAuth()
@@ -85,6 +86,9 @@ export default function ResumePage() {
           </div>
         </div>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

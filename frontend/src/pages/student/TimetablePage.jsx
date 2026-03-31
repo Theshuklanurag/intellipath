@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Calendar, Wand2, Save } from 'lucide-react'
 import { generateTimetable } from '../../services/api'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
 const SLOTS = ['9-10 AM','10-11 AM','11-12 PM','12-1 PM','1-2 PM','2-3 PM','3-4 PM','4-5 PM']
@@ -107,6 +108,9 @@ export default function TimetablePage() {
           <p className="font-dm text-sm">Describe your schedule above and click Generate</p>
         </div>
       )}
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

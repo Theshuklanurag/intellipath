@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Layers, Wand2, ChevronLeft, ChevronRight, RotateCcw, Check, X } from 'lucide-react'
 import { generateFlashcards } from '../../services/api'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function FlashcardsPage() {
   const [text, setText] = useState('')
@@ -119,6 +120,9 @@ export default function FlashcardsPage() {
           {loading ? <div className="loader" /> : <><Wand2 className="w-4 h-4" /> Generate Flashcards</>}
         </button>
       </div>
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

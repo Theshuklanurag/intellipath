@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HelpCircle, Wand2, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import API from '../../services/api'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function QuizPage() {
   const [topic, setTopic] = useState('')
@@ -170,6 +171,9 @@ Format: [{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"corr
           <p className="font-dm text-sm">Enter a topic above and click Generate</p>
         </div>
       )}
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }

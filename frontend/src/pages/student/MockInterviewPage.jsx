@@ -3,6 +3,7 @@ import { Mic, Wand2, RotateCcw, ChevronRight } from 'lucide-react'
 import { mockInterview } from '../../services/api'
 import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
+import DoubtBox from '../../components/DoubtBox'
 
 export default function MockInterviewPage() {
   const [role, setRole] = useState('')
@@ -127,6 +128,9 @@ export default function MockInterviewPage() {
           </button>
         </div>
       )}
+      <div className="px-6 pb-6">
+  <DoubtBox page="AI Chatbot" />
+</div>
     </div>
   )
 }
