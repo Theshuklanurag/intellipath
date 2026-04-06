@@ -1,30 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import {
-  getMarks, addMark, deleteMark,
-  getAttendance, bulkAttendance,
-  getSyllabus, addSyllabusItem, updateSyllabus, deleteSyllabus,
-  getAnnouncements, addAnnouncement, deleteAnnouncement
-} from '../../services/api'
-
-import {
   LayoutDashboard, Users, Calendar, CheckSquare, Award,
   FileText, BookMarked, ClipboardList, Bell, BarChart2,
   Wand2, User, LogOut, Zap, Menu, X, Plus, Trash2,
   Check, ChevronRight, TrendingUp, Activity, Target,
   BookOpen, Edit3, Save, XCircle, AlertTriangle,
-  Download, Upload, Eye, Play
+  Download, Upload, Eye, Play, Youtube
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, RadialBarChart, RadialBar
+  ResponsiveContainer, Legend
 } from 'recharts'
 import { useAuth } from '../../context/AuthContext'
 import { getInitials, renderMarkdown } from '../../utils/helpers'
 import {
   generateQuestionPaper, generateLessonPlan, addAssignment,
-  addPlaylist, getTeacherData, getTeacherProfile, updateTeacherProfile
+  addPlaylist, getTeacherData, getTeacherProfile,
+  updateTeacherProfile, getMarks, addMark, deleteMark,
+  getAttendance, bulkAttendance, getSyllabus, addSyllabusItem,
+  updateSyllabus, deleteSyllabus, getAnnouncements,
+  addAnnouncement, deleteAnnouncement
 } from '../../services/api'
 import API from '../../services/api'
 import toast from 'react-hot-toast'
@@ -99,64 +96,65 @@ const lsSet = (key, val) => localStorage.setItem(key, JSON.stringify(val))
 // ─── ERP DASHBOARD ────────────────────────────────────────
 function ERPDashboard() {
   const { user } = useAuth()
-  const [data, setData] = useState({ students: [], assignments: [], playlists: [] })
-  const [marks, setMarks] = useState(ls('ip_teacher_marks', []))
-  const [attendance, setAttendance] = useState(ls('ip_teacher_attendance', []))
+  const [data,     setData]     = useState({ students: [], assignments: [], playlists: [] })
+  const [marks,    setMarks]    = useState([])
+  const [requests, setRequests] = useState([])
 
   useEffect(() => {
-    getTeacherData().then(r => setData(r.data || { students: [], assignments: [], playlists: [] })).catch(() => {})
+    getTeacherData()
+      .then(r => setData(r.data || { students: [], assignments: [], playlists: [] }))
+      .catch(() => {})
+    getMarks()
+      .then(r => setMarks(r.data || []))
+      .catch(() => {})
+    API.get('/data/connections/requests')
+      .then(r => setRequests((r.data || []).filter(c => c.status === 'pending')))
+      .catch(() => {})
   }, [])
+
+  const handleRequest = async (id, status) => {
+    try {
+      await API.put(`/data/connections/${id}`, { status })
+      setRequests(prev => prev.filter(r => r.id !== id))
+      toast.success(status === 'accepted' ? 'Connection accepted!' : 'Request declined')
+    } catch { toast.error('Failed') }
+  }
 
   const avgGrade = marks.length > 0
     ? Math.round(marks.reduce((a, b) => a + Number(b.grade), 0) / marks.length)
     : 0
 
-  const attendanceRate = attendance.length > 0
-    ? Math.round((attendance.filter(a => a.status === 'present').length / attendance.length) * 100)
-    : 0
-
   const gradeDistribution = [
-    { range: 'A (85+)', count: marks.filter(m => m.grade >= 85).length, color: '#00FF88' },
-    { range: 'B (70+)', count: marks.filter(m => m.grade >= 70 && m.grade < 85).length, color: '#00D4FF' },
-    { range: 'C (55+)', count: marks.filter(m => m.grade >= 55 && m.grade < 70).length, color: '#FFB800' },
-    { range: 'D (<55)', count: marks.filter(m => m.grade < 55).length, color: '#FF4D6A' },
+    { range: 'A (85+)', count: marks.filter(m => m.grade >= 85).length,                            color: '#00FF88' },
+    { range: 'B (70+)', count: marks.filter(m => m.grade >= 70 && m.grade < 85).length,            color: '#00D4FF' },
+    { range: 'C (55+)', count: marks.filter(m => m.grade >= 55 && m.grade < 70).length,            color: '#FFB800' },
+    { range: 'D (<55)', count: marks.filter(m => m.grade < 55).length,                             color: '#FF4D6A' },
   ]
 
   const topStudents = [...data.students]
     .map(s => ({
       ...s,
-      avg: marks.filter(m => m.studentId === s.id).length > 0
-        ? Math.round(marks.filter(m => m.studentId === s.id).reduce((a, b) => a + Number(b.grade), 0) / marks.filter(m => m.studentId === s.id).length)
+      avg: marks.filter(m => m.student_id === s.id).length > 0
+        ? Math.round(marks.filter(m => m.student_id === s.id)
+            .reduce((a, b) => a + Number(b.grade), 0) /
+            marks.filter(m => m.student_id === s.id).length)
         : 0
     }))
     .sort((a, b) => b.avg - a.avg)
     .slice(0, 5)
-  // Add to ERPDashboard component
-const [requests, setRequests] = useState([])
 
-useEffect(() => {
-  API.get('/data/connections/requests')
-    .then(r => setRequests((r.data || []).filter(c => c.status === 'pending')))
-    .catch(() => {})
-}, [])
-
-const handleRequest = async (id, status) => {
-  try {
-    await API.put(`/data/connections/${id}`, { status })
-    setRequests(prev => prev.filter(r => r.id !== id))
-    toast.success(status === 'accepted' ? 'Connection accepted!' : 'Request declined')
-  } catch { toast.error('Failed') }
-}
   return (
     <div className="p-5 max-w-7xl mx-auto">
       {/* Welcome */}
       <div className="rounded-2xl p-6 mb-6 relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, rgba(155,89,255,0.08), rgba(0,212,255,0.05))', border: '1px solid var(--border)' }}>
+        style={{ background: 'linear-gradient(135deg,rgba(155,89,255,0.08),rgba(0,212,255,0.05))', border: '1px solid var(--border)' }}>
         <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-10"
           style={{ background: 'var(--purple)', transform: 'translate(30%,-30%)' }} />
         <div className="flex items-center gap-2 mb-2">
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--green)' }} />
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--green)' }}>ERP System Active</span>
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--green)' }}>
+            ERP System Active
+          </span>
         </div>
         <h1 className="font-syne font-bold text-2xl mb-1" style={{ color: 'var(--text-primary)' }}>
           Welcome, {user?.fullName?.split(' ')[0]} 👩‍🏫
@@ -166,13 +164,51 @@ const handleRequest = async (id, status) => {
         </p>
       </div>
 
+      {/* Connection requests */}
+      {requests.length > 0 && (
+        <div className="glass rounded-2xl p-5 mb-6">
+          <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+            🔔 Student Connection Requests ({requests.length})
+          </h3>
+          <div className="space-y-3">
+            {requests.map(req => (
+              <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                  {req.student?.full_name?.[0]?.toUpperCase() || 'S'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>
+                    {req.student?.full_name || 'Student'}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {req.message || 'Wants to connect with you'}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => handleRequest(req.id, 'accepted')}
+                    className="btn-primary text-xs" style={{ padding: '6px 14px' }}>
+                    Accept
+                  </button>
+                  <button onClick={() => handleRequest(req.id, 'rejected')}
+                    className="btn-danger text-xs" style={{ padding: '6px 14px' }}>
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total Students',   value: data.students.length, color: 'var(--cyan)',   icon: Users },
-          { label: 'Class Average',    value: avgGrade ? `${avgGrade}%` : '—', color: 'var(--green)', icon: TrendingUp },
-          { label: 'Attendance Rate',  value: attendanceRate ? `${attendanceRate}%` : '—', color: 'var(--amber)', icon: CheckSquare },
-          { label: 'Assignments',      value: data.assignments.length, color: 'var(--purple)', icon: ClipboardList },
+          { label: 'Total Students', value: data.students.length, color: 'var(--cyan)',   icon: Users       },
+          { label: 'Class Average',  value: avgGrade ? `${avgGrade}%` : '—', color: 'var(--green)', icon: TrendingUp  },
+          { label: 'Grade Records',  value: marks.length,         color: 'var(--amber)', icon: Award       },
+          { label: 'Assignments',    value: data.assignments.length, color: 'var(--purple)', icon: ClipboardList },
         ].map((s, i) => {
           const Icon = s.icon
           return (
@@ -189,66 +225,36 @@ const handleRequest = async (id, status) => {
           )
         })}
       </div>
-      {requests.length > 0 && (
-  <div className="glass rounded-2xl p-5 mb-6">
-    <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
-      🔔 Pending Connection Requests ({requests.length})
-    </h3>
-    <div className="space-y-3">
-      {requests.map(req => (
-        <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #00D4FF, #9B59FF)', color: '#000' }}>
-            {req.student?.full_name?.[0]?.toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>
-              {req.student?.full_name}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {req.message || 'Wants to connect with you'}
-            </p>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <button onClick={() => handleRequest(req.id, 'accepted')}
-              className="btn-primary text-xs" style={{ padding: '6px 12px' }}>
-              Accept
-            </button>
-            <button onClick={() => handleRequest(req.id, 'rejected')}
-              className="btn-danger text-xs" style={{ padding: '6px 12px' }}>
-              Decline
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
 
-      {/* Charts row */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        {/* Grade distribution */}
         <div className="chart-card">
           <div className="chart-title">Grade Distribution</div>
           <div className="chart-subtitle">All student grades</div>
           <ResponsiveContainer width="100%" height={180}>
             <PieChart>
-              <Pie data={gradeDistribution.filter(d => d.count > 0).length > 0
-                ? gradeDistribution.filter(d => d.count > 0)
-                : [{ range: 'No data', count: 1, color: '#4A5275' }]}
-                cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="count" paddingAngle={3}>
+              <Pie
+                data={gradeDistribution.filter(d => d.count > 0).length > 0
+                  ? gradeDistribution.filter(d => d.count > 0)
+                  : [{ range: 'No data', count: 1, color: '#4A5275' }]}
+                cx="50%" cy="50%" innerRadius={40} outerRadius={70}
+                dataKey="count" paddingAngle={3}>
                 {gradeDistribution.map((d, i) => (
                   <Cell key={i} fill={d.color} />
                 ))}
               </Pie>
-              <Tooltip formatter={(val) => [val, 'Students']} contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }} />
-              <Legend iconSize={8} formatter={(val) => <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{val}</span>} />
+              <Tooltip
+                formatter={(val) => [val, 'Students']}
+                contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
+              />
+              <Legend
+                iconSize={8}
+                formatter={(val) => <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{val}</span>}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Top students */}
         <div className="chart-card lg:col-span-2">
           <div className="chart-title">Top Performing Students</div>
           <div className="chart-subtitle">By average grade</div>
@@ -258,17 +264,20 @@ const handleRequest = async (id, status) => {
                 const color = s.avg >= 85 ? 'var(--green)' : s.avg >= 70 ? 'var(--cyan)' : s.avg >= 55 ? 'var(--amber)' : 'var(--red)'
                 return (
                   <div key={s.id || i} className="flex items-center gap-3">
-                    <span className="text-xs font-bold font-syne w-4 text-center" style={{ color: i === 0 ? 'var(--amber)' : 'var(--text-muted)' }}>
+                    <span className="text-xs font-bold font-syne w-4 text-center"
+                      style={{ color: i === 0 ? 'var(--amber)' : 'var(--text-muted)' }}>
                       {i + 1}
                     </span>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 font-syne"
-                      style={{ background: 'linear-gradient(135deg, #00D4FF, #9B59FF)', color: '#000' }}>
-                      {s.name?.[0]?.toUpperCase()}
+                      style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                      {s.name?.[0]?.toUpperCase() || 'S'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>{s.name}</span>
-                        <span className="font-syne font-bold text-sm ml-2 flex-shrink-0" style={{ color }}>{s.avg}%</span>
+                        <span className="text-sm font-medium truncate"
+                          style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>{s.name}</span>
+                        <span className="font-syne font-bold text-sm ml-2 flex-shrink-0"
+                          style={{ color }}>{s.avg}%</span>
                       </div>
                       <div className="progress-bar">
                         <div className="progress-fill" style={{ width: `${s.avg}%`, background: color }} />
@@ -279,7 +288,8 @@ const handleRequest = async (id, status) => {
               })}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-24" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            <div className="flex items-center justify-center h-24"
+              style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               Add students and record marks to see rankings
             </div>
           )}
@@ -289,21 +299,28 @@ const handleRequest = async (id, status) => {
       {/* Quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { to: 'students',     icon: Users,        label: 'Add Student',  color: '#00D4FF' },
-          { to: 'marks',        icon: Award,        label: 'Enter Marks',  color: '#00FF88' },
-          { to: 'attendance',   icon: CheckSquare,  label: 'Attendance',   color: '#FFB800' },
-          { to: 'question-paper',icon: FileText,    label: 'Gen Paper',    color: '#9B59FF' },
+          { to: 'students',      icon: Users,        label: 'Add Student', color: '#00D4FF' },
+          { to: 'marks',         icon: Award,        label: 'Enter Marks', color: '#00FF88' },
+          { to: 'attendance',    icon: CheckSquare,  label: 'Attendance',  color: '#FFB800' },
+          { to: 'question-paper',icon: FileText,     label: 'Gen Paper',   color: '#9B59FF' },
         ].map(({ to, icon: Icon, label, color }) => (
           <Link key={to} to={to}
             className="flex items-center gap-3 p-4 rounded-2xl transition-all"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = color + '50'; e.currentTarget.style.background = 'var(--bg-card-hover)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)' }}>
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', textDecoration: 'none' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = color + '50'
+              e.currentTarget.style.background = 'var(--bg-card-hover)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border)'
+              e.currentTarget.style.background = 'var(--bg-card)'
+            }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: color + '15' }}>
               <Icon className="w-4 h-4" style={{ color }} />
             </div>
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>{label}</span>
+            <span className="text-sm font-semibold"
+              style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>{label}</span>
           </Link>
         ))}
       </div>
