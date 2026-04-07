@@ -5,7 +5,7 @@ import {
   FileText, BookMarked, ClipboardList, Bell, BarChart2,
   Wand2, User, LogOut, Zap, Menu, X, Plus, Trash2,
   Check, ChevronRight, TrendingUp, BookOpen, Edit3,
-  Save, XCircle, Play, Youtube
+  Save, XCircle, Play, PlayCircle
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -1777,7 +1777,7 @@ function PlaylistsPage() {
               onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(255,77,106,0.4)'; e.currentTarget.style.transform='translateY(-3px)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform='translateY(0)' }}>
               <div className="h-32 flex items-center justify-center relative" style={{ background:'var(--bg-secondary)' }}>
-                <Youtube className="w-12 h-12" style={{ color:'var(--red)',opacity:0.7 }} />
+                <PlayCircle className="w-12 h-12" style={{ color:'var(--red)',opacity:0.7 }} />
                 <div className="absolute inset-0" style={{ background:'linear-gradient(to top,rgba(10,11,15,0.8),transparent)' }} />
                 {p.subject && <span className="absolute bottom-2 left-3 badge badge-cyan" style={{ fontSize:10 }}>{p.subject}</span>}
               </div>
