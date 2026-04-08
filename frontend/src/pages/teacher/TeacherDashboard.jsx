@@ -396,33 +396,54 @@ function AnalyticsPage() {
 
 // ── STUDENTS ───────────────────────────────────────────────
 function StudentsPage() {
-  const [students,  setStudents]  = useState([])
-  const [form,      setForm]      = useState({ name: '', course: '', email: '', phone: '', rollNo: '', year: '' })
-  const [loading,   setLoading]   = useState(true)
-  const [showForm,  setShowForm]  = useState(false)
-  const [search,    setSearch]    = useState('')
+  const [students,   setStudents]   = useState([])
+  const [form,       setForm]       = useState({ name:'',course:'',email:'',phone:'',rollNo:'',year:'' })
+  const [loading,    setLoading]    = useState(true)
+  const [showForm,   setShowForm]   = useState(false)
+  const [search,     setSearch]     = useState('')
+  const [selected,   setSelected]   = useState(null)
+  const [detail,     setDetail]     = useState(null)
+  const [detailLoad, setDetailLoad] = useState(false)
 
   useEffect(() => {
-    getTeacherData().then(r => setStudents(r.data?.students || [])).catch(() => {}).finally(() => setLoading(false))
+    getTeacherData()
+      .then(r => setStudents(r.data?.students || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const addStudent = async () => {
     if (!form.name || !form.course) return toast.error('Name and course required')
     try {
       const res = await API.post('/teacher/student', form)
-      setStudents(Array.isArray(res.data) ? res.data : [...students, { ...form, id: Date.now() }])
-      setForm({ name: '', course: '', email: '', phone: '', rollNo: '', year: '' })
+      setStudents(Array.isArray(res.data) ? res.data : [...students, { ...form, id: Date.now().toString() }])
+      setForm({ name:'',course:'',email:'',phone:'',rollNo:'',year:'' })
       setShowForm(false)
       toast.success('Student added!')
-    } catch { toast.error('Failed') }
+    } catch { toast.error('Failed to add student') }
   }
 
   const removeStudent = async (id) => {
     try {
       await API.delete(`/teacher/student/${id}`)
       setStudents(prev => prev.filter(s => s.id !== id))
+      if (selected === id) { setSelected(null); setDetail(null) }
       toast.success('Removed')
     } catch { toast.error('Failed') }
+  }
+
+  const viewDetails = async (student) => {
+    setSelected(student.id)
+    setDetailLoad(true)
+    try {
+      const res = await API.get(`/teacher/student/${student.id}`)
+      setDetail(res.data)
+    } catch {
+      // fallback — show basic info
+      setDetail({ student, marks: [], attendance: [] })
+    } finally {
+      setDetailLoad(false)
+    }
   }
 
   const filtered = students.filter(s =>
@@ -430,14 +451,23 @@ function StudentsPage() {
     s.course?.toLowerCase().includes(search.toLowerCase())
   )
 
+  const attendRate = detail
+    ? detail.attendance.length > 0
+      ? Math.round((detail.attendance.filter(a => a.status === 'present').length / detail.attendance.length) * 100)
+      : null
+    : null
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>
 
   return (
-    <div className="p-5 max-w-5xl mx-auto">
+    <div className="p-5 max-w-6xl mx-auto">
       <div className="page-header">
-        <div className="page-title"><Users className="w-5 h-5" style={{ color: 'var(--cyan)' }} /> Student Roster</div>
+        <div className="page-title">
+          <Users className="w-5 h-5" style={{ color: 'var(--cyan)' }} /> Student Roster
+        </div>
         <p className="page-subtitle">{students.length} enrolled students</p>
       </div>
+
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <input className="inp flex-1 min-w-48" placeholder="Search students..."
           value={search} onChange={e => setSearch(e.target.value)} />
@@ -445,22 +475,25 @@ function StudentsPage() {
           <Plus className="w-4 h-4" /> Add Student
         </button>
       </div>
+
       {showForm && (
         <div className="glass rounded-2xl p-5 mb-5">
-          <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>New Student</h3>
+          <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+            New Student
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             {[
-              { key: 'name',   label: 'Full Name*',      placeholder: 'Student name' },
-              { key: 'course', label: 'Course/Subject*', placeholder: 'e.g. B.Tech CS' },
-              { key: 'rollNo', label: 'Roll Number',     placeholder: 'e.g. 21CS001' },
-              { key: 'year',   label: 'Year/Semester',   placeholder: 'e.g. 3rd Year' },
-              { key: 'email',  label: 'Email',           placeholder: 'student@email.com' },
-              { key: 'phone',  label: 'Phone',           placeholder: '+91 XXXXXXXXXX' },
+              { key:'name',   label:'Full Name*',      placeholder:'Student name'      },
+              { key:'course', label:'Course/Subject*', placeholder:'e.g. B.Tech CS'    },
+              { key:'rollNo', label:'Roll Number',     placeholder:'e.g. 21CS001'      },
+              { key:'year',   label:'Year/Semester',   placeholder:'e.g. 3rd Year'     },
+              { key:'email',  label:'Email',           placeholder:'student@email.com'  },
+              { key:'phone',  label:'Phone',           placeholder:'+91 XXXXXXXXXX'    },
             ].map(f => (
               <div key={f.key}>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
+                <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>{f.label}</label>
                 <input className="inp" placeholder={f.placeholder}
-                  value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />
+                  value={form[f.key]} onChange={e => setForm(p => ({ ...p,[f.key]:e.target.value }))} />
               </div>
             ))}
           </div>
@@ -470,47 +503,184 @@ function StudentsPage() {
           </div>
         </div>
       )}
-      {filtered.length > 0 ? (
-        <div className="glass rounded-2xl overflow-hidden">
-          <table className="erp-table">
-            <thead><tr><th>#</th><th>Student</th><th>Course</th><th>Roll No</th><th>Year</th><th>Contact</th><th></th></tr></thead>
-            <tbody>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Student list */}
+        <div className="lg:col-span-1">
+          {filtered.length > 0 ? (
+            <div className="glass rounded-2xl overflow-hidden">
               {filtered.map((s, i) => (
-                <tr key={s.id || i}>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{i + 1}</td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-syne flex-shrink-0"
-                        style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
-                        {s.name?.[0]?.toUpperCase()}
-                      </div>
-                      <span style={{ color: 'var(--text-primary)', fontFamily: 'Outfit', fontWeight: 500 }}>{s.name}</span>
-                    </div>
-                  </td>
-                  <td><span className="badge badge-cyan">{s.course}</span></td>
-                  <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}>{s.rollNo || '—'}</td>
-                  <td>{s.year || '—'}</td>
-                  <td style={{ fontSize: 12 }}>{s.email || s.phone || '—'}</td>
-                  <td>
-                    <button onClick={() => removeStudent(s.id)} className="btn-ghost" style={{ color: 'var(--red)' }}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
+                <div
+                  key={s.id || i}
+                  onClick={() => viewDetails(s)}
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all"
+                  style={{
+                    borderBottom: '1px solid var(--border)',
+                    background: selected === s.id ? 'var(--cyan-dim)' : 'transparent',
+                    borderLeft: selected === s.id ? '3px solid var(--cyan)' : '3px solid transparent'
+                  }}
+                  onMouseEnter={e => { if (selected !== s.id) e.currentTarget.style.background = 'var(--bg-card-hover)' }}
+                  onMouseLeave={e => { if (selected !== s.id) e.currentTarget.style.background = 'transparent' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                    {s.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate"
+                      style={{ color: selected === s.id ? 'var(--cyan)' : 'var(--text-primary)', fontFamily: 'Outfit' }}>
+                      {s.name}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {s.course} {s.rollNo ? `· ${s.rollNo}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); removeStudent(s.id) }}
+                    className="btn-ghost p-1 flex-shrink-0" style={{ color: 'var(--red)' }}>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--text-muted)' }}>
+              <Users className="w-12 h-12 mb-4 opacity-20" />
+              <p className="text-sm">{search ? 'No match' : 'No students yet'}</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--text-muted)' }}>
-          <Users className="w-12 h-12 mb-4 opacity-20" />
-          <p className="text-sm">{search ? 'No students match your search' : 'No students yet. Add your first student!'}</p>
+
+        {/* Student detail */}
+        <div className="lg:col-span-2">
+          {detailLoad ? (
+            <div className="flex items-center justify-center h-48"><div className="loader" /></div>
+          ) : detail ? (
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="glass rounded-2xl p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold font-syne"
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                    {detail.student?.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-syne font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+                      {detail.student?.name}
+                    </h3>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      {detail.student?.course} · {detail.student?.year || '—'} · {detail.student?.rollNo || 'No roll no'}
+                    </p>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {detail.student?.email && <span className="badge badge-cyan" style={{ fontSize: 10 }}>{detail.student.email}</span>}
+                      {detail.student?.phone && <span className="badge badge-purple" style={{ fontSize: 10 }}>{detail.student.phone}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    {
+                      label: 'Avg Grade',
+                      value: detail.marks?.length > 0
+                        ? Math.round(detail.marks.reduce((a, b) => a + (Number(b.grade)/Number(b.max_grade || 100))*100, 0) / detail.marks.length) + '%'
+                        : '—',
+                      color: 'var(--cyan)'
+                    },
+                    {
+                      label: 'Attendance',
+                      value: attendRate !== null ? `${attendRate}%` : '—',
+                      color: attendRate >= 75 ? 'var(--green)' : attendRate !== null ? 'var(--red)' : 'var(--text-muted)'
+                    },
+                    {
+                      label: 'Tests Taken',
+                      value: detail.marks?.length || 0,
+                      color: 'var(--amber)'
+                    },
+                  ].map((s, i) => (
+                    <div key={i} className="text-center p-3 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+                      <div className="font-syne font-bold text-xl" style={{ color: s.color }}>{s.value}</div>
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Marks */}
+              {detail.marks?.length > 0 && (
+                <div className="glass rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                    <p className="font-syne font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      Grade Records
+                    </p>
+                  </div>
+                  <table className="erp-table">
+                    <thead><tr><th>Subject</th><th>Exam</th><th>Score</th><th>Grade</th></tr></thead>
+                    <tbody>
+                      {detail.marks.map((m, i) => {
+                        const pct = Math.round((Number(m.grade)/Number(m.max_grade || 100))*100)
+                        const color = pct >= 85 ? 'var(--green)' : pct >= 70 ? 'var(--cyan)' : pct >= 55 ? 'var(--amber)' : 'var(--red)'
+                        return (
+                          <tr key={i}>
+                            <td><span className="badge badge-cyan" style={{ fontSize: 10 }}>{m.subject}</span></td>
+                            <td style={{ fontSize: 12 }}>{m.exam_name || '—'}</td>
+                            <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color }}>{m.grade}/{m.max_grade || 100}</td>
+                            <td><span className="font-bold text-sm font-syne" style={{ color }}>{pct}%</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Attendance */}
+              {detail.attendance?.length > 0 && (
+                <div className="glass rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                    <p className="font-syne font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      Recent Attendance
+                    </p>
+                  </div>
+                  <table className="erp-table">
+                    <thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead>
+                    <tbody>
+                      {detail.attendance.slice(0, 10).map((a, i) => (
+                        <tr key={i}>
+                          <td style={{ fontFamily: 'JetBrains Mono', fontSize: 11 }}>{a.date}</td>
+                          <td><span className="badge badge-purple" style={{ fontSize: 10 }}>{a.subject}</span></td>
+                          <td>
+                            <span className={`badge ${a.status === 'present' ? 'badge-green' : 'badge-red'}`} style={{ fontSize: 10 }}>
+                              {a.status === 'present' ? '✓ Present' : '✗ Absent'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {detail.marks?.length === 0 && detail.attendance?.length === 0 && (
+                <div className="glass rounded-2xl p-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                  <Award className="w-10 h-10 mb-3 opacity-20 mx-auto" />
+                  <p className="text-sm">No records yet for this student.</p>
+                  <p className="text-xs mt-1">Add marks and attendance to see details here.</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="glass rounded-2xl p-12 text-center" style={{ color: 'var(--text-muted)' }}>
+              <Users className="w-12 h-12 mb-4 opacity-20 mx-auto" />
+              <p className="text-sm font-semibold">Click a student to view details</p>
+              <p className="text-xs mt-1">Grades, attendance, and performance</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
-
 // ── ATTENDANCE ─────────────────────────────────────────────
 function AttendancePage() {
   const [students,   setStudents]   = useState([])
@@ -1565,21 +1735,30 @@ function AnnouncementsPage() {
 // ── TEACHER PROFILE ────────────────────────────────────────
 function TeacherProfilePage() {
   const { user } = useAuth()
-  const [form,     setForm]     = useState({ fullName:'',qualifications:'',subjectsTaught:'',yearsExperience:'',bio:'',youtubeLink:'' })
-  const [loading,  setLoading]  = useState(false)
-  const [fetching, setFetching] = useState(true)
+  const [form,     setForm]     = useState({
+    fullName:'', qualifications:'', yearsExperience:'', bio:'', youtubeLink:''
+  })
+  const [subjects,    setSubjects]    = useState([])
+  const [newSubject,  setNewSubject]  = useState({ name:'', code:'', description:'' })
+  const [loading,     setLoading]     = useState(false)
+  const [fetching,    setFetching]    = useState(true)
+  const [addingSubj,  setAddingSubj]  = useState(false)
+  const [showAddSubj, setShowAddSubj] = useState(false)
 
   useEffect(() => {
-    getTeacherProfile().then(r => {
-      const d = r.data
+    Promise.all([
+      getTeacherProfile(),
+      API.get('/teacher/subjects')
+    ]).then(([p, s]) => {
+      const d = p.data
       setForm({
-        fullName:       d.full_name    || user?.fullName || '',
-        qualifications: d.qualifications || '',
-        subjectsTaught: (d.subjects_taught || []).join(', '),
-        yearsExperience:d.years_experience || '',
-        bio:            d.bio          || '',
-        youtubeLink:    d.youtube_link || '',
+        fullName:       d.full_name       || user?.fullName || '',
+        qualifications: d.qualifications  || '',
+        yearsExperience:d.years_experience|| '',
+        bio:            d.bio             || '',
+        youtubeLink:    d.youtube_link    || '',
       })
+      setSubjects(s.data || [])
     }).catch(() => {}).finally(() => setFetching(false))
   }, [])
 
@@ -1592,32 +1771,62 @@ function TeacherProfilePage() {
     finally { setLoading(false) }
   }
 
+  const addSubject = async () => {
+    if (!newSubject.name.trim()) return toast.error('Subject name required')
+    setAddingSubj(true)
+    try {
+      const res = await API.post('/teacher/subjects', newSubject)
+      setSubjects(prev => [...prev, res.data])
+      setNewSubject({ name:'', code:'', description:'' })
+      setShowAddSubj(false)
+      toast.success('Subject added!')
+    } catch { toast.error('Failed to add subject') }
+    finally { setAddingSubj(false) }
+  }
+
+  const deleteSubject = async (id) => {
+    try {
+      await API.delete(`/teacher/subjects/${id}`)
+      setSubjects(prev => prev.filter(s => s.id !== id))
+      toast.success('Subject removed')
+    } catch { toast.error('Failed') }
+  }
+
   if (fetching) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>
 
   return (
-    <div className="p-5 max-w-2xl mx-auto">
+    <div className="p-5 max-w-3xl mx-auto">
       <div className="page-header">
         <div className="page-title"><User className="w-5 h-5" style={{ color:'var(--pink)' }} /> My Profile</div>
-        <p className="page-subtitle">Manage your teacher profile</p>
+        <p className="page-subtitle">Manage your teacher profile and subjects</p>
       </div>
+
+      {/* Avatar */}
       <div className="flex items-center gap-4 glass rounded-2xl p-5 mb-5">
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold font-syne flex-shrink-0"
           style={{ background:'linear-gradient(135deg,#FF006E,#9B59FF)', color:'#fff' }}>
-          {getInitials(form.fullName||user?.fullName)}
+          {getInitials(form.fullName || user?.fullName)}
         </div>
         <div>
           <p className="font-syne font-bold text-lg" style={{ color:'var(--text-primary)' }}>{form.fullName||user?.fullName}</p>
           <p className="text-sm" style={{ color:'var(--text-muted)' }}>{user?.email}</p>
-          <span className="badge badge-pink mt-1">Teacher</span>
+          <div className="flex gap-2 mt-1 flex-wrap">
+            <span className="badge badge-pink">Teacher</span>
+            {subjects.length > 0 && (
+              <span className="badge badge-cyan">{subjects.length} subject{subjects.length > 1 ? 's' : ''}</span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="glass rounded-2xl p-5 space-y-4">
+
+      {/* Profile form */}
+      <div className="glass rounded-2xl p-5 mb-5 space-y-4">
+        <h3 className="font-syne font-semibold text-sm" style={{ color:'var(--text-primary)' }}>Personal Details</h3>
         {[
-          { key:'fullName',        label:'Full Name',            placeholder:'Your full name' },
-          { key:'qualifications',  label:'Qualifications',       placeholder:'e.g. M.Tech CS' },
-          { key:'subjectsTaught',  label:'Subjects Taught',      placeholder:'e.g. Data Structures, DBMS' },
-          { key:'yearsExperience', label:'Years of Experience',  placeholder:'e.g. 5' },
-          { key:'youtubeLink',     label:'YouTube Channel',      placeholder:'https://youtube.com/@channel' },
+          { key:'fullName',        label:'Full Name',            placeholder:'Your full name'          },
+          { key:'qualifications',  label:'Qualifications',       placeholder:'e.g. M.Tech CS, B.Ed'    },
+          { key:'yearsExperience', label:'Years of Experience',  placeholder:'e.g. 5'                  },
+          { key:'youtubeLink',     label:'YouTube Channel',      placeholder:'https://youtube.com/...' },
         ].map(f => (
           <div key={f.key}>
             <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>{f.label}</label>
@@ -1627,12 +1836,90 @@ function TeacherProfilePage() {
         ))}
         <div>
           <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>Bio</label>
-          <textarea className="inp resize-none w-full" rows={4} placeholder="Tell students about yourself..."
+          <textarea className="inp resize-none w-full" rows={3}
+            placeholder="Tell students about yourself..."
             value={form.bio} onChange={e => setForm(p => ({ ...p,bio:e.target.value }))} />
         </div>
-        <button onClick={save} disabled={loading} className="btn-primary w-full" style={{ justifyContent:'center' }}>
+        <button onClick={save} disabled={loading} className="btn-primary" style={{ fontSize:14 }}>
           {loading ? <div className="loader" style={{ width:16,height:16,borderWidth:2 }} /> : <><Save className="w-4 h-4" /> Save Profile</>}
         </button>
+      </div>
+
+      {/* Subjects I Teach */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-syne font-semibold text-sm" style={{ color:'var(--text-primary)' }}>
+              📚 Subjects I Teach
+            </h3>
+            <p className="text-xs mt-0.5" style={{ color:'var(--text-muted)' }}>
+              Students can find you by searching these subjects
+            </p>
+          </div>
+          <button onClick={() => setShowAddSubj(!showAddSubj)} className="btn-primary text-sm" style={{ padding:'8px 14px' }}>
+            <Plus className="w-4 h-4" /> Add Subject
+          </button>
+        </div>
+
+        {showAddSubj && (
+          <div className="glass rounded-xl p-4 mb-4" style={{ background:'var(--bg-secondary)' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>Subject Name*</label>
+                <input className="inp" placeholder="e.g. Data Structures"
+                  value={newSubject.name} onChange={e => setNewSubject(p => ({ ...p,name:e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>Subject Code</label>
+                <input className="inp" placeholder="e.g. CS301"
+                  value={newSubject.code} onChange={e => setNewSubject(p => ({ ...p,code:e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color:'var(--text-muted)' }}>Description</label>
+                <input className="inp" placeholder="Brief description"
+                  value={newSubject.description} onChange={e => setNewSubject(p => ({ ...p,description:e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={addSubject} disabled={addingSubj} className="btn-primary text-sm">
+                {addingSubj ? <div className="loader" style={{ width:14,height:14,borderWidth:2 }} /> : <><Plus className="w-4 h-4" /> Add</>}
+              </button>
+              <button onClick={() => setShowAddSubj(false)} className="btn-secondary text-sm">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {subjects.length > 0 ? (
+          <div className="space-y-3">
+            {subjects.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-4 rounded-xl"
+                style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background:'var(--cyan-dim)', border:'1px solid rgba(0,212,255,0.2)' }}>
+                  <BookOpen className="w-5 h-5" style={{ color:'var(--cyan)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-syne font-semibold text-sm" style={{ color:'var(--text-primary)' }}>{s.name}</p>
+                    {s.code && <span className="badge badge-purple" style={{ fontSize:10 }}>{s.code}</span>}
+                  </div>
+                  {s.description && (
+                    <p className="text-xs mt-0.5" style={{ color:'var(--text-muted)' }}>{s.description}</p>
+                  )}
+                </div>
+                <button onClick={() => deleteSubject(s.id)} className="btn-ghost" style={{ color:'var(--red)' }}>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8" style={{ color:'var(--text-muted)' }}>
+            <BookOpen className="w-10 h-10 mb-3 opacity-20" />
+            <p className="text-sm">No subjects added yet</p>
+            <p className="text-xs mt-1">Add subjects so students can find and connect with you</p>
+          </div>
+        )}
       </div>
     </div>
   )

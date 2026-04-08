@@ -1,214 +1,183 @@
-import { useState, useEffect } from 'react'
-import { TrendingUp, Target, AlertTriangle, CheckCircle, Plus, Trash2, Clock, Zap } from 'lucide-react'
+import { useState } from 'react'
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from 'recharts'
-import {
-  getAcademicDetails,
-  getStudyLogs, addStudyLog, deleteStudyLog,
-  getTargets, addTarget, deleteTarget,
-  getProblems, addProblem, updateProblem, deleteProblem
-} from '../../services/api'
-import { renderMarkdown } from '../../utils/helpers'
+  Heart, Brain, Moon, Sun, Smile, Frown, Meh,
+  Activity, Coffee, Wind, Music, BookOpen, Zap
+} from 'lucide-react'
 import API from '../../services/api'
+import { renderMarkdown } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 import DoubtBox from '../../components/DoubtBox'
 
-const COLORS = ['#00D4FF', '#9B59FF', '#00FF88', '#FFB800', '#FF006E', '#FF4D6A']
+const MOODS = [
+  { emoji: '😄', label: 'Great',    value: 5, color: '#00FF88' },
+  { emoji: '🙂', label: 'Good',     value: 4, color: '#00D4FF' },
+  { emoji: '😐', label: 'Neutral',  value: 3, color: '#FFB800' },
+  { emoji: '😔', label: 'Low',      value: 2, color: '#FF006E' },
+  { emoji: '😢', label: 'Very Low', value: 1, color: '#FF4D6A' },
+]
 
-const CT = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
-      <p style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 4 }}>{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color || 'var(--cyan)', fontSize: 12, fontFamily: 'Syne', fontWeight: 700 }}>
-          {p.name}: {p.value}
-        </p>
-      ))}
-    </div>
-  )
-}
+const STRESS_LEVELS = [
+  { label: 'None',     value: 1, color: '#00FF88' },
+  { label: 'Mild',     value: 2, color: '#00D4FF' },
+  { label: 'Moderate', value: 3, color: '#FFB800' },
+  { label: 'High',     value: 4, color: '#FF006E' },
+  { label: 'Severe',   value: 5, color: '#FF4D6A' },
+]
 
-export default function ProgressPage() {
-  const [academic,   setAcademic]   = useState(null)
-  const [studyLog,   setStudyLog]   = useState([])
-  const [targets,    setTargets]    = useState([])
-  const [problems,   setProblems]   = useState([])
-  const [loading,    setLoading]    = useState(true)
-  const [tab,        setTab]        = useState('overview')
-  const [aiAdvice,   setAiAdvice]   = useState('')
-  const [analyzing,  setAnalyzing]  = useState(false)
+const SLEEP_OPTIONS = [
+  { label: '< 4 hrs',  value: 'less4'  },
+  { label: '4-5 hrs',  value: '4to5'   },
+  { label: '6-7 hrs',  value: '6to7'   },
+  { label: '7-8 hrs',  value: '7to8'   },
+  { label: '8+ hrs',   value: 'more8'  },
+]
 
-  const [newLog,     setNewLog]     = useState({
-    date: new Date().toISOString().split('T')[0],
-    subject: '', hours: '', topic: ''
+const ACTIVITIES = [
+  { icon: Activity, label: 'Exercise'   },
+  { icon: Coffee,   label: 'Meditation' },
+  { icon: Wind,     label: 'Breathing'  },
+  { icon: Music,    label: 'Music'      },
+  { icon: BookOpen, label: 'Reading'    },
+  { icon: Sun,      label: 'Walk'       },
+]
+
+const CONCERNS = [
+  'Academic pressure',
+  'Exam anxiety',
+  'Time management',
+  'Peer pressure',
+  'Family issues',
+  'Career uncertainty',
+  'Financial stress',
+  'Loneliness',
+  'Health issues',
+  'Social media',
+  'Sleep problems',
+  'Motivation loss',
+]
+
+const TIPS = [
+  { icon: Moon,     title: 'Sleep Schedule',  tip: 'Aim for 7-8 hours. Sleep at same time daily.' },
+  { icon: Activity, title: 'Exercise',        tip: '30 min of movement daily boosts mood by 30%.' },
+  { icon: Wind,     title: 'Deep Breathing',  tip: '4-7-8 technique: inhale 4s, hold 7s, exhale 8s.' },
+  { icon: Sun,      title: 'Sunlight',        tip: '15 min of morning sunlight regulates your mood.' },
+  { icon: Coffee,   title: 'Limit Caffeine',  tip: 'No coffee after 2pm for better sleep quality.' },
+  { icon: Brain,    title: 'Mindfulness',     tip: '5 min daily meditation reduces anxiety by 40%.' },
+]
+
+export default function WellbeingPage() {
+  const [form, setForm] = useState({
+    mood:           null,
+    stress:         null,
+    sleep:          '',
+    activities:     [],
+    concerns:       [],
+    notes:          '',
+    waterGlasses:   '',
+    studyHours:     '',
+    socialTime:     '',
+    energyLevel:    '',
+    gratitude:      '',
+    tomorrowGoal:   '',
   })
-  const [newTarget,  setNewTarget]  = useState({ subject: '', targetGrade: '', currentGrade: '' })
-  const [newProblem, setNewProblem] = useState({ subject: '', issue: '', severity: 'medium' })
+  const [output,    setOutput]    = useState('')
+  const [loading,   setLoading]   = useState(false)
+  const [tab,       setTab]       = useState('checkin')
+  const [submitted, setSubmitted] = useState(false)
 
-  useEffect(() => {
-    Promise.all([
-      getAcademicDetails(),
-      getStudyLogs(),
-      getTargets(),
-      getProblems(),
-    ])
-      .then(([ac, sl, tg, pr]) => {
-        setAcademic(ac.data)
-        setStudyLog(sl.data || [])
-        setTargets(tg.data || [])
-        setProblems(pr.data || [])
+  const toggleActivity = (label) => {
+    setForm(f => ({
+      ...f,
+      activities: f.activities.includes(label)
+        ? f.activities.filter(a => a !== label)
+        : [...f.activities, label]
+    }))
+  }
+
+  const toggleConcern = (label) => {
+    setForm(f => ({
+      ...f,
+      concerns: f.concerns.includes(label)
+        ? f.concerns.filter(c => c !== label)
+        : [...f.concerns, label]
+    }))
+  }
+
+  const handleAnalyze = async () => {
+    if (!form.mood) return toast.error('Please select your mood first')
+    setLoading(true)
+    try {
+      const res = await API.post('/ai/chatbot', {
+        prompt: `You are a compassionate student wellbeing counselor. Analyze this student's mental health check-in and provide personalized, actionable advice in Markdown:
+
+**Today's Check-in:**
+- Mood: ${MOODS.find(m => m.value === form.mood)?.label} (${form.mood}/5)
+- Stress Level: ${STRESS_LEVELS.find(s => s.value === form.stress)?.label || 'Not specified'}
+- Sleep Last Night: ${form.sleep || 'Not specified'}
+- Energy Level: ${form.energyLevel || 'Not specified'}/10
+- Water Intake: ${form.waterGlasses || 'Not specified'} glasses
+- Study Hours Today: ${form.studyHours || 'Not specified'} hours
+- Social Time: ${form.socialTime || 'Not specified'} hours
+- Activities Done: ${form.activities.join(', ') || 'None'}
+- Current Concerns: ${form.concerns.join(', ') || 'None'}
+- Personal Notes: ${form.notes || 'None'}
+- Gratitude Today: ${form.gratitude || 'Not mentioned'}
+- Tomorrow's Goal: ${form.tomorrowGoal || 'Not set'}
+
+Please provide:
+## 🧠 Mental Health Assessment
+Brief assessment of current state
+
+## 💡 Personalized Recommendations
+3-4 specific actionable steps for today
+
+## 📚 Study-Wellbeing Balance
+How to balance academics with mental health
+
+## 🌟 Positive Affirmation
+A personalized encouraging message
+
+## 🚨 When to Seek Help
+Signs to watch for and resources to consider
+
+Keep the tone warm, empathetic and motivating. Be specific to their situation.`
       })
-      .catch(() => toast.error('Failed to load progress data'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const handleAddLog = async () => {
-    if (!newLog.subject || !newLog.hours) return toast.error('Fill subject and hours')
-    try {
-      const res = await addStudyLog(newLog)
-      setStudyLog(prev => [res.data, ...prev])
-      setNewLog({ date: new Date().toISOString().split('T')[0], subject: '', hours: '', topic: '' })
-      toast.success('Session logged!')
-    } catch { toast.error('Failed to log session') }
-  }
-
-  const handleDeleteLog = async (id) => {
-    try {
-      await deleteStudyLog(id)
-      setStudyLog(prev => prev.filter(l => l.id !== id))
-    } catch { toast.error('Failed') }
-  }
-
-  const handleAddTarget = async () => {
-    if (!newTarget.subject || !newTarget.targetGrade) return toast.error('Fill subject and target')
-    try {
-      const res = await addTarget(newTarget)
-      setTargets(prev => [res.data, ...prev])
-      setNewTarget({ subject: '', targetGrade: '', currentGrade: '' })
-      toast.success('Target set!')
-    } catch { toast.error('Failed') }
-  }
-
-  const handleDeleteTarget = async (id) => {
-    try {
-      await deleteTarget(id)
-      setTargets(prev => prev.filter(t => t.id !== id))
-    } catch { toast.error('Failed') }
-  }
-
-  const handleAddProblem = async () => {
-    if (!newProblem.subject || !newProblem.issue) return toast.error('Fill subject and issue')
-    try {
-      const res = await addProblem(newProblem)
-      setProblems(prev => [res.data, ...prev])
-      setNewProblem({ subject: '', issue: '', severity: 'medium' })
-      toast.success('Problem tracked!')
-    } catch { toast.error('Failed') }
-  }
-
-  const handleToggleProblem = async (id, resolved) => {
-    try {
-      const res = await updateProblem(id, { resolved: !resolved })
-      setProblems(prev => prev.map(p => p.id === id ? res.data : p))
-    } catch { toast.error('Failed') }
-  }
-
-  const handleDeleteProblem = async (id) => {
-    try {
-      await deleteProblem(id)
-      setProblems(prev => prev.filter(p => p.id !== id))
-    } catch { toast.error('Failed') }
-  }
-
-  const getAIAnalysis = async () => {
-    setAnalyzing(true)
-    try {
-      const subjectsData = academic?.subjects?.map(s => ({
-        name: s.name,
-        avgGrade: s.grades?.length
-          ? Math.round(s.grades.reduce((a, b) => a + b.grade, 0) / s.grades.length)
-          : 0,
-        attendance: s.attendance
-      }))
-
-      const prompt = `Analyze this student's academic progress and provide personalized advice in Markdown:
-
-Subjects & Grades: ${JSON.stringify(subjectsData)}
-Study Log (recent): ${JSON.stringify(studyLog.slice(0, 10))}
-Problem Areas: ${JSON.stringify(problems.filter(p => !p.resolved))}
-Targets: ${JSON.stringify(targets)}
-
-Provide:
-1. Overall performance assessment
-2. Subjects needing immediate attention
-3. Study schedule recommendations
-4. Motivational insights
-5. Syllabus modification suggestions
-6. Predicted performance if current trend continues`
-
-      const res = await API.post('/ai/chatbot', { prompt })
-      setAiAdvice(res.data.output)
-      toast.success('AI Analysis ready!')
+      setOutput(res.data.output)
+      setSubmitted(true)
+      toast.success('Wellbeing analysis ready!')
     } catch {
       toast.error('Analysis failed. Try again.')
     } finally {
-      setAnalyzing(false)
+      setLoading(false)
     }
   }
 
-  // Chart data
-  const weeklyHours = [...studyLog]
-    .slice(0, 14)
-    .reduce((acc, log) => {
-      const d = log.date?.slice(5) || ''
-      const ex = acc.find(a => a.date === d)
-      if (ex) ex.hours += Number(log.hours)
-      else acc.push({ date: d, hours: Number(log.hours) })
-      return acc
-    }, [])
-    .reverse()
-    .slice(-7)
-
-  const subjectPie = (academic?.subjects || []).map(s => ({
-    name: s.name,
-    value: studyLog
-      .filter(l => l.subject === s.name)
-      .reduce((a, b) => a + Number(b.hours), 0) || 0
-  })).filter(s => s.value > 0)
-
-  const targetChart = targets.map(t => ({
-    subject: t.subject?.slice(0, 10),
-    current: Number(t.current_grade) || 0,
-    target:  Number(t.target_grade)  || 0,
-  }))
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="loader" />
-    </div>
-  )
+  const reset = () => {
+    setForm({
+      mood: null, stress: null, sleep: '', activities: [],
+      concerns: [], notes: '', waterGlasses: '', studyHours: '',
+      socialTime: '', energyLevel: '', gratitude: '', tomorrowGoal: ''
+    })
+    setOutput('')
+    setSubmitted(false)
+  }
 
   return (
-    <div className="p-5 max-w-6xl mx-auto">
+    <div className="p-5 max-w-4xl mx-auto">
       <div className="page-header">
         <div className="page-title">
-          <TrendingUp className="w-5 h-5" style={{ color: 'var(--cyan)' }} />
-          My Progress Tracker
+          <Heart className="w-5 h-5" style={{ color: '#FF006E' }} fill="#FF006E" />
+          Mental Wellbeing
         </div>
-        <p className="page-subtitle">All data saved to cloud — synced across devices</p>
+        <p className="page-subtitle">Daily check-in for your mental health and academic balance</p>
       </div>
 
       {/* Tabs */}
-      <div className="tab-group mb-6 flex-wrap">
+      <div className="tab-group mb-6">
         {[
-          { key: 'overview',  label: '📊 Overview'    },
-          { key: 'targets',   label: '🎯 Targets'     },
-          { key: 'studylog',  label: '⏱ Study Log'    },
-          { key: 'problems',  label: '⚠️ Problems'    },
-          { key: 'analysis',  label: '🤖 AI Analysis' },
+          { key: 'checkin', label: '💭 Daily Check-in'   },
+          { key: 'tips',    label: '💡 Wellness Tips'    },
+          { key: 'crisis',  label: '🆘 Need Help?'       },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`tab ${tab === t.key ? 'active' : ''}`}>
@@ -217,397 +186,329 @@ Provide:
         ))}
       </div>
 
-      {/* ── OVERVIEW ── */}
-      {tab === 'overview' && (
+      {/* ── CHECK-IN ── */}
+      {tab === 'checkin' && (
         <div className="space-y-5">
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Study Hours', value: studyLog.reduce((a, b) => a + Number(b.hours), 0) + 'h', color: 'var(--cyan)'   },
-              { label: 'Targets Set',       value: targets.length,                                           color: 'var(--green)'  },
-              { label: 'Open Problems',     value: problems.filter(p => !p.resolved).length,                 color: 'var(--amber)'  },
-              { label: 'Resolved Issues',   value: problems.filter(p => p.resolved).length,                  color: 'var(--purple)' },
-            ].map((s, i) => (
-              <div key={i} className="stat-card">
-                <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
-                <div className="stat-label">{s.label}</div>
+
+          {/* MOOD */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              How are you feeling today?
+            </h3>
+            <div className="flex gap-3 flex-wrap">
+              {MOODS.map(m => (
+                <button key={m.value} onClick={() => setForm(f => ({ ...f, mood: m.value }))}
+                  className="flex flex-col items-center gap-1.5 px-5 py-4 rounded-2xl transition-all"
+                  style={{
+                    background: form.mood === m.value ? m.color + '20' : 'var(--bg-secondary)',
+                    border: `2px solid ${form.mood === m.value ? m.color : 'var(--border)'}`,
+                    cursor: 'pointer', flex: 1, minWidth: 80
+                  }}>
+                  <span className="text-3xl">{m.emoji}</span>
+                  <span className="text-xs font-semibold" style={{ color: form.mood === m.value ? m.color : 'var(--text-muted)' }}>
+                    {m.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* STRESS */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              Stress Level
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              {STRESS_LEVELS.map(s => (
+                <button key={s.value} onClick={() => setForm(f => ({ ...f, stress: s.value }))}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                  style={{
+                    background: form.stress === s.value ? s.color + '20' : 'var(--bg-secondary)',
+                    border: `1px solid ${form.stress === s.value ? s.color : 'var(--border)'}`,
+                    color: form.stress === s.value ? s.color : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SLEEP + METRICS */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              Daily Metrics
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Sleep Duration</label>
+                <select className="inp" value={form.sleep} onChange={e => setForm(f => ({ ...f, sleep: e.target.value }))}>
+                  <option value="">Select</option>
+                  {SLEEP_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Energy Level (1-10)</label>
+                <input type="number" className="inp" min="1" max="10" placeholder="7"
+                  value={form.energyLevel} onChange={e => setForm(f => ({ ...f, energyLevel: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Water Glasses</label>
+                <input type="number" className="inp" min="0" max="20" placeholder="8"
+                  value={form.waterGlasses} onChange={e => setForm(f => ({ ...f, waterGlasses: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Study Hours Today</label>
+                <input type="number" className="inp" min="0" max="24" placeholder="4"
+                  value={form.studyHours} onChange={e => setForm(f => ({ ...f, studyHours: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Social Time (hrs)</label>
+                <input type="number" className="inp" min="0" max="24" placeholder="2"
+                  value={form.socialTime} onChange={e => setForm(f => ({ ...f, socialTime: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          {/* ACTIVITIES */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              Wellness Activities Done Today
+            </h3>
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {ACTIVITIES.map(({ icon: Icon, label }) => (
+                <button key={label} onClick={() => toggleActivity(label)}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                  style={{
+                    background: form.activities.includes(label) ? 'var(--green-dim)' : 'var(--bg-secondary)',
+                    border: `1px solid ${form.activities.includes(label) ? 'rgba(0,255,136,0.3)' : 'var(--border)'}`,
+                    cursor: 'pointer'
+                  }}>
+                  <Icon className="w-5 h-5" style={{ color: form.activities.includes(label) ? 'var(--green)' : 'var(--text-muted)' }} />
+                  <span className="text-xs" style={{ color: form.activities.includes(label) ? 'var(--green)' : 'var(--text-muted)' }}>
+                    {label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* CONCERNS */}
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              Current Concerns (select all that apply)
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {CONCERNS.map(concern => (
+                <button key={concern} onClick={() => toggleConcern(concern)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{
+                    background: form.concerns.includes(concern) ? 'var(--amber-dim)' : 'var(--bg-secondary)',
+                    border: `1px solid ${form.concerns.includes(concern) ? 'rgba(255,184,0,0.3)' : 'var(--border)'}`,
+                    color: form.concerns.includes(concern) ? 'var(--amber)' : 'var(--text-muted)',
+                    cursor: 'pointer'
+                  }}>
+                  {concern}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* GRATITUDE + GOAL + NOTES */}
+          <div className="glass rounded-2xl p-5 space-y-4">
+            <h3 className="font-syne font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>
+              Reflection
+            </h3>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                🙏 What are you grateful for today?
+              </label>
+              <input className="inp" placeholder="I'm grateful for..."
+                value={form.gratitude} onChange={e => setForm(f => ({ ...f, gratitude: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                🎯 One goal for tomorrow
+              </label>
+              <input className="inp" placeholder="Tomorrow I will..."
+                value={form.tomorrowGoal} onChange={e => setForm(f => ({ ...f, tomorrowGoal: e.target.value }))} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                📝 Anything else on your mind?
+              </label>
+              <textarea className="inp resize-none w-full" rows={3}
+                placeholder="Share your thoughts freely..."
+                value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* SUBMIT */}
+          <button onClick={handleAnalyze} disabled={loading || !form.mood}
+            className="btn-primary w-full py-4" style={{ justifyContent: 'center', fontSize: 15 }}>
+            {loading
+              ? <><div className="loader" style={{ width: 18, height: 18, borderWidth: 2 }} /> Analyzing your wellbeing...</>
+              : <><Brain className="w-5 h-5" /> Get AI Wellbeing Analysis</>}
+          </button>
+
+          {/* AI OUTPUT */}
+          {output && (
+            <div>
+              <div className="ai-box">
+                <div className="flex items-center gap-2 mb-4 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <Heart className="w-4 h-4" style={{ color: '#FF006E' }} />
+                  <span className="font-syne font-semibold text-sm" style={{ color: '#FF006E' }}>
+                    IntelliPath Wellbeing Analysis
+                  </span>
+                </div>
+                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(output) }} />
+              </div>
+              <button onClick={reset} className="btn-secondary w-full mt-4" style={{ justifyContent: 'center' }}>
+                Start New Check-in
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TIPS ── */}
+      {tab === 'tips' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {TIPS.map(({ icon: Icon, title, tip }) => (
+              <div key={title} className="glass rounded-2xl p-5 flex gap-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--cyan-dim)', border: '1px solid rgba(0,212,255,0.2)' }}>
+                  <Icon className="w-5 h-5" style={{ color: 'var(--cyan)' }} />
+                </div>
+                <div>
+                  <h4 className="font-syne font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
+                    {title}
+                  </h4>
+                  <p className="text-xs" style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>{tip}</p>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="chart-card">
-              <div className="chart-title">Study Hours</div>
-              <div className="chart-subtitle">Recent logged sessions</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={weeklyHours.length > 0 ? weeklyHours : [{ date: 'No data', hours: 0 }]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CT />} />
-                  <Bar dataKey="hours" name="Hours" fill="#00D4FF" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="chart-card">
-              <div className="chart-title">Study Time by Subject</div>
-              <div className="chart-subtitle">Distribution of hours</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={subjectPie.length > 0 ? subjectPie : [{ name: 'No data yet', value: 1 }]}
-                    cx="50%" cy="50%"
-                    innerRadius={45} outerRadius={75}
-                    dataKey="value" paddingAngle={3}>
-                    {(subjectPie.length > 0 ? subjectPie : [{ name: 'No data', value: 1 }]).map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val) => [`${val}h`, 'Hours']}
-                    contentStyle={{
-                      background: 'var(--bg-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      fontSize: 12
-                    }}
-                  />
-                  <Legend
-                    iconSize={8}
-                    formatter={(val) => (
-                      <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{val}</span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Target vs Current */}
-          {targetChart.length > 0 && (
-            <div className="chart-card">
-              <div className="chart-title">Target vs Current Grade</div>
-              <div className="chart-subtitle">Gap analysis per subject</div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={targetChart} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                  <XAxis dataKey="subject" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                  <Tooltip content={<CT />} />
-                  <Bar dataKey="current" name="Current" fill="#00D4FF" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                  <Bar dataKey="target"  name="Target"  fill="#9B59FF" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex gap-6 mt-2 justify-center">
-                <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <div className="w-3 h-3 rounded-sm" style={{ background: '#00D4FF' }} /> Current
-                </div>
-                <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <div className="w-3 h-3 rounded-sm" style={{ background: '#9B59FF' }} /> Target
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── TARGETS ── */}
-      {tab === 'targets' && (
-        <div className="space-y-5">
-          <div className="glass rounded-2xl p-5">
-            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
-              🎯 Set New Target
+          {/* Pomodoro technique */}
+          <div className="glass rounded-2xl p-5"
+            style={{ background: 'linear-gradient(135deg,rgba(155,89,255,0.05),rgba(0,212,255,0.05))' }}>
+            <h3 className="font-syne font-bold text-base mb-3" style={{ color: 'var(--text-primary)' }}>
+              🍅 Pomodoro Study Technique
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Subject</label>
-                <input className="inp" placeholder="e.g. Data Structures"
-                  value={newTarget.subject}
-                  onChange={e => setNewTarget(p => ({ ...p, subject: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Current Grade (%)</label>
-                <input className="inp" type="number" min="0" max="100" placeholder="e.g. 65"
-                  value={newTarget.currentGrade}
-                  onChange={e => setNewTarget(p => ({ ...p, currentGrade: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Target Grade (%)</label>
-                <input className="inp" type="number" min="0" max="100" placeholder="e.g. 85"
-                  value={newTarget.targetGrade}
-                  onChange={e => setNewTarget(p => ({ ...p, targetGrade: e.target.value }))} />
-              </div>
-            </div>
-            <button onClick={handleAddTarget} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" /> Set Target
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {targets.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12" style={{ color: 'var(--text-muted)' }}>
-                <Target className="w-10 h-10 mb-3 opacity-30" />
-                <p className="text-sm">No targets set yet. Set your first academic target above.</p>
-              </div>
-            )}
-            {targets.map(t => {
-              const current  = Number(t.current_grade) || 0
-              const target   = Number(t.target_grade)  || 0
-              const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
-              const gap      = Math.max(0, target - current)
-              const color    = progress >= 80 ? 'var(--green)' : progress >= 50 ? 'var(--amber)' : 'var(--red)'
-              return (
-                <div key={t.id} className="glass rounded-2xl p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h4 className="font-syne font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                        {t.subject}
-                      </h4>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {current}% current →{' '}
-                        <span style={{ color: 'var(--cyan)' }}>{target}% target</span>
-                        {gap > 0 && <span style={{ color: 'var(--amber)' }}> · {gap}% to go</span>}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-syne font-bold text-lg" style={{ color }}>{progress}%</span>
-                      <button onClick={() => handleDeleteTarget(t.id)} className="btn-ghost" style={{ color: 'var(--red)' }}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${progress}%`, background: color }} />
-                  </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { step: '1', label: 'Work',       time: '25 min', color: 'var(--cyan)'   },
+                { step: '2', label: 'Break',       time: '5 min',  color: 'var(--green)'  },
+                { step: '3', label: 'Work',        time: '25 min', color: 'var(--cyan)'   },
+                { step: '4', label: 'Long Break',  time: '15 min', color: 'var(--purple)' },
+              ].map(s => (
+                <div key={s.step} className="text-center p-3 rounded-xl"
+                  style={{ background: s.color + '10', border: `1px solid ${s.color}30` }}>
+                  <div className="font-syne font-bold text-xl" style={{ color: s.color }}>{s.time}</div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Step {s.step}: {s.label}</div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* ── STUDY LOG ── */}
-      {tab === 'studylog' && (
-        <div className="space-y-5">
+          {/* Study-life balance */}
           <div className="glass rounded-2xl p-5">
-            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
-              ⏱ Log Study Session
+            <h3 className="font-syne font-bold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              ⚖️ Ideal Daily Balance for Students
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Date</label>
-                <input type="date" className="inp" value={newLog.date}
-                  onChange={e => setNewLog(p => ({ ...p, date: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Subject</label>
-                <input className="inp" placeholder="e.g. DBMS"
-                  value={newLog.subject}
-                  onChange={e => setNewLog(p => ({ ...p, subject: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Hours</label>
-                <input type="number" className="inp" placeholder="e.g. 2.5"
-                  min="0.5" max="12" step="0.5"
-                  value={newLog.hours}
-                  onChange={e => setNewLog(p => ({ ...p, hours: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Topic Covered</label>
-                <input className="inp" placeholder="e.g. B+ Trees"
-                  value={newLog.topic}
-                  onChange={e => setNewLog(p => ({ ...p, topic: e.target.value }))} />
-              </div>
-            </div>
-            <button onClick={handleAddLog} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" /> Log Session
-            </button>
-          </div>
-
-          {studyLog.length > 0 ? (
-            <div className="glass rounded-2xl overflow-hidden">
-              <table className="erp-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Subject</th>
-                    <th>Topic</th>
-                    <th>Hours</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studyLog.map(log => (
-                    <tr key={log.id}>
-                      <td style={{ fontFamily: 'JetBrains Mono', fontSize: 12, color: 'var(--text-muted)' }}>
-                        {log.date}
-                      </td>
-                      <td><span className="badge badge-cyan">{log.subject}</span></td>
-                      <td style={{ fontSize: 13 }}>{log.topic || '—'}</td>
-                      <td>
-                        <span className="font-syne font-bold" style={{ color: 'var(--green)' }}>
-                          {log.hours}h
-                        </span>
-                      </td>
-                      <td>
-                        <button onClick={() => handleDeleteLog(log.id)}
-                          className="btn-ghost" style={{ color: 'var(--red)' }}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12" style={{ color: 'var(--text-muted)' }}>
-              <Clock className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">No study sessions logged yet</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── PROBLEMS ── */}
-      {tab === 'problems' && (
-        <div className="space-y-5">
-          <div className="glass rounded-2xl p-5">
-            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
-              ⚠️ Track Problem Area
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Subject</label>
-                <input className="inp" placeholder="e.g. Algorithms"
-                  value={newProblem.subject}
-                  onChange={e => setNewProblem(p => ({ ...p, subject: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Issue / Topic</label>
-                <input className="inp" placeholder="e.g. Dynamic Programming"
-                  value={newProblem.issue}
-                  onChange={e => setNewProblem(p => ({ ...p, issue: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Severity</label>
-                <select className="inp" value={newProblem.severity}
-                  onChange={e => setNewProblem(p => ({ ...p, severity: e.target.value }))}>
-                  <option value="low">Low — Slightly confused</option>
-                  <option value="medium">Medium — Need practice</option>
-                  <option value="high">High — Completely stuck</option>
-                </select>
-              </div>
-            </div>
-            <button onClick={handleAddProblem} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" /> Track Problem
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {problems.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12" style={{ color: 'var(--text-muted)' }}>
-                <AlertTriangle className="w-10 h-10 mb-3 opacity-30" />
-                <p className="text-sm">No problem areas tracked yet</p>
-              </div>
-            )}
-            {problems.map(p => {
-              const c = p.severity === 'high'
-                ? 'var(--red)'
-                : p.severity === 'medium'
-                ? 'var(--amber)'
-                : 'var(--green)'
-              return (
-                <div key={p.id}
-                  className="glass rounded-xl p-4 flex items-center gap-4"
-                  style={{ opacity: p.resolved ? 0.5 : 1, borderLeft: `3px solid ${c}` }}>
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: c }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm"
-                        style={{ color: 'var(--text-primary)', fontFamily: 'Outfit' }}>
-                        {p.issue}
-                      </span>
-                      <span className="badge badge-cyan text-xs">{p.subject}</span>
-                      <span className="badge text-xs"
-                        style={{ background: c + '15', color: c, border: `1px solid ${c}30` }}>
-                        {p.severity}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleToggleProblem(p.id, p.resolved)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                      style={{
-                        background: p.resolved ? 'var(--green-dim)' : 'var(--bg-card)',
-                        color: p.resolved ? 'var(--green)' : 'var(--text-muted)',
-                        border: `1px solid ${p.resolved ? 'rgba(0,255,136,0.2)' : 'var(--border)'}`
-                      }}>
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      {p.resolved ? 'Resolved' : 'Mark Resolved'}
-                    </button>
-                    <button onClick={() => handleDeleteProblem(p.id)}
-                      className="btn-ghost" style={{ color: 'var(--red)' }}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+            {[
+              { label: 'Study / College',  hours: 8,  color: 'var(--cyan)'   },
+              { label: 'Sleep',            hours: 7.5,color: 'var(--purple)' },
+              { label: 'Exercise',         hours: 1,  color: 'var(--green)'  },
+              { label: 'Meals & Self-care',hours: 2,  color: 'var(--amber)'  },
+              { label: 'Social & Hobbies', hours: 3,  color: 'var(--pink)'   },
+              { label: 'Free time',        hours: 2.5,color: 'var(--cyan)'   },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-3 mb-3">
+                <span className="text-xs w-40 flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  {item.label}
+                </span>
+                <div className="flex-1 progress-bar">
+                  <div className="progress-fill" style={{
+                    width: `${(item.hours / 24) * 100}%`,
+                    background: item.color
+                  }} />
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── AI ANALYSIS ── */}
-      {tab === 'analysis' && (
-        <div className="space-y-5">
-          <div className="glass rounded-2xl p-6"
-            style={{ background: 'linear-gradient(135deg, rgba(155,89,255,0.05), rgba(0,212,255,0.05))' }}>
-            <div className="flex items-start gap-4 mb-5">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'rgba(155,89,255,0.15)', border: '1px solid rgba(155,89,255,0.3)' }}>
-                <TrendingUp className="w-6 h-6" style={{ color: 'var(--purple)' }} />
-              </div>
-              <div>
-                <h3 className="font-syne font-bold text-base" style={{ color: 'var(--text-primary)' }}>
-                  AI Progress Analysis
-                </h3>
-                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                  AI analyzes your grades, study hours, problem areas, and targets to give
-                  personalized recommendations including syllabus adjustments.
-                </p>
-              </div>
-            </div>
-            <button onClick={getAIAnalysis} disabled={analyzing} className="btn-primary">
-              {analyzing
-                ? <><div className="loader" style={{ width: 16, height: 16, borderWidth: 2 }} /> Analyzing...</>
-                : '🤖 Generate AI Analysis'}
-            </button>
-          </div>
-
-          {aiAdvice && (
-            <div className="ai-box">
-              <div className="flex items-center gap-2 mb-4 pb-3"
-                style={{ borderBottom: '1px solid var(--border)' }}>
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-                  style={{ background: 'var(--cyan-dim)' }}>
-                  <Zap className="w-3.5 h-3.5" style={{ color: 'var(--cyan)' }} />
-                </div>
-                <span className="font-syne font-semibold text-sm" style={{ color: 'var(--cyan)' }}>
-                  IntelliPath AI Analysis
+                <span className="text-xs font-bold font-syne w-12 text-right"
+                  style={{ color: item.color }}>
+                  {item.hours}h
                 </span>
               </div>
-              <div dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAdvice) }} />
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
-      <div className="px-6 pb-6">
-  <DoubtBox page="AI Chatbot" />
-</div>
+
+      {/* ── CRISIS ── */}
+      {tab === 'crisis' && (
+        <div className="space-y-4">
+          <div className="glass rounded-2xl p-6"
+            style={{ borderLeft: '4px solid var(--red)' }}>
+            <h3 className="font-syne font-bold text-base mb-2" style={{ color: 'var(--red)' }}>
+              🆘 You're Not Alone
+            </h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              If you're feeling overwhelmed, anxious, or having thoughts of harming yourself,
+              please reach out immediately. Help is available 24/7.
+            </p>
+          </div>
+
+          {[
+            { name: 'iCall (India)',         number: '9152987821',  desc: 'Mon-Sat, 8am-10pm. Free counseling for students.' },
+            { name: 'Vandrevala Foundation', number: '1860-2662-345',desc: '24/7 mental health helpline in India.' },
+            { name: 'AASRA',                 number: '9820466627',  desc: '24/7 crisis support for suicidal thoughts.' },
+            { name: 'Snehi',                 number: '044-24640050',desc: 'Emotional support for students and youth.' },
+          ].map(line => (
+            <div key={line.name} className="glass rounded-2xl p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--red-dim)', border: '1px solid rgba(255,77,106,0.2)' }}>
+                <Heart className="w-5 h-5" style={{ color: 'var(--red)' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-syne font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {line.name}
+                </h4>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{line.desc}</p>
+              </div>
+              <a href={`tel:${line.number.replace(/-/g,'')}`}
+                className="btn-primary text-sm flex-shrink-0" style={{ padding: '8px 16px' }}>
+                📞 {line.number}
+              </a>
+            </div>
+          ))}
+
+          <div className="glass rounded-2xl p-5">
+            <h3 className="font-syne font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+              🧘 Instant Calm — Try This Now
+            </h3>
+            <div className="space-y-3">
+              {[
+                { step: '1', text: 'Take a slow deep breath in for 4 counts' },
+                { step: '2', text: 'Hold your breath for 4 counts' },
+                { step: '3', text: 'Breathe out slowly for 6 counts' },
+                { step: '4', text: 'Repeat 5 times. Notice how you feel.' },
+              ].map(s => (
+                <div key={s.step} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs font-syne flex-shrink-0"
+                    style={{ background: 'var(--cyan-dim)', color: 'var(--cyan)' }}>
+                    {s.step}
+                  </div>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{s.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DoubtBox page="Wellbeing" />
     </div>
   )
 }

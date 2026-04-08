@@ -2,77 +2,80 @@ const { supabase } = require('../config/db')
 
 exports.getProfile = async (req, res) => {
   try {
-    let { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', req.user.id)
       .single()
 
+    if (error && error.code !== 'PGRST116') {
+      return res.status(500).json({ msg: error.message })
+    }
+
+    // If no profile exists, create one
     if (!data) {
-      const { data: newProfile } = await supabase
+      const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert([{ user_id: req.user.id }])
         .select()
         .single()
-      data = newProfile
+      if (createError) return res.status(500).json({ msg: createError.message })
+      return res.json(newProfile)
     }
 
     res.json(data)
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' })
+    res.status(500).json({ msg: err.message })
   }
 }
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { bio, skills, interests, careerGoal, linkedinUrl, githubUrl } = req.body
+    const {
+      full_name, phone, college, course, year, passing_year,
+      date_of_birth, address, roll_no, about, avatar_url,
+      skills, interests, career_goal, linkedin_url, github_url,
+      xp_points
+    } = req.body
 
-    const updateFields = {
-      user_id: req.user.id,
-      bio: bio || '',
-      career_goal: careerGoal || '',
-      linkedin_url: linkedinUrl || '',
-      github_url: githubUrl || '',
+    // Check if profile exists
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .single()
+
+    const profileData = {
+      user_id:      req.user.id,
+      full_name,    phone,       college,      course,
+      year,         passing_year,date_of_birth,address,
+      roll_no,      about,       avatar_url,
+      skills:       Array.isArray(skills) ? skills : [],
+      interests:    Array.isArray(interests) ? interests : [],
+      career_goal,  linkedin_url, github_url,
+      xp_points:    xp_points || 0,
+      updated_at:   new Date().toISOString()
     }
 
-    if (skills) updateFields.skills = skills.split(',').map(s => s.trim()).filter(Boolean)
-    if (interests) updateFields.interests = interests.split(',').map(s => s.trim()).filter(Boolean)
-    if (req.file) updateFields.avatar_url = `/uploads/${req.file.filename}`
+    let result
+    if (existing) {
+      result = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('user_id', req.user.id)
+        .select()
+        .single()
+    } else {
+      result = await supabase
+        .from('profiles')
+        .insert([profileData])
+        .select()
+        .single()
+    }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(updateFields, { onConflict: 'user_id' })
-      .select()
-      .single()
-
-    if (error) throw error
-    res.json(data)
+    if (result.error) return res.status(500).json({ msg: result.error.message })
+    res.json(result.data)
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' })
-  }
-}
-
-exports.addXP = async (req, res) => {
-  try {
-    const { points } = req.body
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('xp_points')
-      .eq('user_id', req.user.id)
-      .single()
-
-    const newXP = (profile?.xp_points || 0) + (points || 10)
-
-    const { data } = await supabase
-      .from('profiles')
-      .update({ xp_points: newXP })
-      .eq('user_id', req.user.id)
-      .select()
-      .single()
-
-    res.json(data)
-  } catch (err) {
-    res.status(500).json({ msg: 'Server error' })
+    res.status(500).json({ msg: err.message })
   }
 }
