@@ -25,6 +25,7 @@ import {
 } from '../../services/api'
 import API from '../../services/api'
 import toast from 'react-hot-toast'
+import { MessageSquare } from 'lucide-react'
 
 const COLORS = ['#00D4FF','#9B59FF','#00FF88','#FFB800','#FF006E','#FF4D6A']
 
@@ -60,6 +61,7 @@ const NAV_GROUPS = [
       { path: 'attendance', icon: CheckSquare, label: 'Attendance'      },
       { path: 'marks',      icon: Award,       label: 'Marks & Grades'  },
       { path: 'progress',   icon: TrendingUp,  label: 'Student Progress'},
+      { path: 'messages', icon: MessageSquare, label: 'Student Chat' },
     ]
   },
   {
@@ -2089,6 +2091,201 @@ function PlaylistsPage() {
     </div>
   )
 }
+//── Teacher Message ───────────────────────────────────────────
+function TeacherMessagesPage() {
+  const { user }         = useAuth()
+  const [connections,    setConnections]   = useState([])
+  const [activeConn,     setActiveConn]    = useState(null)
+  const [messages,       setMessages]      = useState([])
+  const [newMsg,         setNewMsg]        = useState('')
+  const [loading,        setLoading]       = useState(true)
+  const [sending,        setSending]       = useState(false)
+  const [msgLoading,     setMsgLoading]    = useState(false)
+  const bottomRef  = useRef(null)
+  const pollRef    = useRef(null)
+
+  useEffect(() => {
+    API.get('/data/connections/teacher')
+      .then(r => {
+        const accepted = (r.data || []).filter(c => c.status === 'accepted')
+        setConnections(accepted)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  useEffect(() => {
+    if (activeConn) {
+      pollRef.current = setInterval(() => {
+        API.get(`/data/messages/${activeConn.id}`)
+          .then(r => setMessages(r.data || []))
+          .catch(() => {})
+      }, 5000)
+    }
+    return () => clearInterval(pollRef.current)
+  }, [activeConn])
+
+  const openChat = async (conn) => {
+    setActiveConn(conn)
+    setMsgLoading(true)
+    try {
+      const res = await API.get(`/data/messages/${conn.id}`)
+      setMessages(res.data || [])
+    } catch {} finally { setMsgLoading(false) }
+  }
+
+  const handleSend = async () => {
+    if (!newMsg.trim() || !activeConn) return
+    setSending(true)
+    try {
+      const res = await API.post('/data/messages', {
+        receiverId:   activeConn.student_id,
+        connectionId: activeConn.id,
+        content:      newMsg
+      })
+      setMessages(prev => [...prev, res.data])
+      setNewMsg('')
+    } catch { toast.error('Failed to send') }
+    finally { setSending(false) }
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="loader" /></div>
+
+  return (
+    <div className="p-5 max-w-5xl mx-auto">
+      <div className="page-header">
+        <div className="page-title">
+          <MessageSquare className="w-5 h-5" style={{ color: 'var(--cyan)' }} /> Student Chat
+        </div>
+        <p className="page-subtitle">Communicate with your connected students</p>
+      </div>
+
+      {connections.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16" style={{ color: 'var(--text-muted)' }}>
+          <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
+          <p className="text-sm">No accepted connections yet</p>
+          <p className="text-xs mt-1">Accept student requests from the ERP Dashboard</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Connections list */}
+          <div className="glass rounded-2xl overflow-hidden">
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Connected Students ({connections.length})
+              </p>
+            </div>
+            <div className="p-2">
+              {connections.map(conn => (
+                <button key={conn.id}
+                  onClick={() => openChat(conn)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left"
+                  style={{
+                    background: activeConn?.id === conn.id ? 'var(--cyan-dim)' : 'transparent',
+                    border: `1px solid ${activeConn?.id === conn.id ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
+                    cursor: 'pointer'
+                  }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne flex-shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                    {conn.student?.full_name?.[0]?.toUpperCase() || 'S'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate"
+                      style={{ color: activeConn?.id === conn.id ? 'var(--cyan)' : 'var(--text-primary)', fontFamily: 'Outfit' }}>
+                      {conn.student?.full_name || 'Student'}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {conn.subject || 'Connected'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chat area */}
+          <div className="lg:col-span-2 glass rounded-2xl overflow-hidden flex flex-col" style={{ minHeight: 500 }}>
+            {activeConn ? (
+              <>
+                {/* Chat header */}
+                <div className="flex items-center gap-3 px-5 py-4 flex-shrink-0"
+                  style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold font-syne"
+                    style={{ background: 'linear-gradient(135deg,#00D4FF,#9B59FF)', color: '#000' }}>
+                    {activeConn.student?.full_name?.[0]?.toUpperCase() || 'S'}
+                  </div>
+                  <div>
+                    <p className="font-syne font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {activeConn.student?.full_name || 'Student'}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--green)' }}>● Online</p>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ minHeight: 360, maxHeight: 400 }}>
+                  {msgLoading ? (
+                    <div className="flex items-center justify-center h-full"><div className="loader" /></div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--text-muted)' }}>
+                      <MessageSquare className="w-8 h-8 mb-2 opacity-20" />
+                      <p className="text-sm">Start the conversation!</p>
+                    </div>
+                  ) : messages.map(msg => {
+                    const isMe = msg.sender_id === user?.id
+                    return (
+                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        <div style={{
+                          maxWidth: '72%', padding: '10px 14px',
+                          borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          background: isMe ? 'linear-gradient(135deg,#FF006E,#9B59FF)' : 'var(--bg-secondary)',
+                          color: isMe ? '#fff' : 'var(--text-primary)',
+                          border: isMe ? 'none' : '1px solid var(--border)',
+                          fontSize: 14, fontFamily: 'Outfit', lineHeight: 1.5
+                        }}>
+                          {msg.content}
+                          <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4, textAlign: isMe ? 'right' : 'left' }}>
+                            {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-3 px-4 py-3 flex-shrink-0"
+                  style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                  <input className="inp flex-1" placeholder="Type a message..."
+                    value={newMsg}
+                    onChange={e => setNewMsg(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()} />
+                  <button onClick={handleSend} disabled={sending || !newMsg.trim()}
+                    className="btn-primary flex-shrink-0" style={{ padding: '10px 16px' }}>
+                    {sending
+                      ? <div className="loader" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                      : <Send className="w-4 h-4" />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full" style={{ color: 'var(--text-muted)' }}>
+                <MessageSquare className="w-12 h-12 mb-4 opacity-20" />
+                <p className="text-sm">Select a student to start chatting</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── MAIN SHELL ─────────────────────────────────────────────
 export default function TeacherDashboard() {
@@ -2211,6 +2408,7 @@ export default function TeacherDashboard() {
             <Route path="/ai-grader"      element={<AIGraderPage />}        />
             <Route path="/announcements"  element={<AnnouncementsPage />}   />
             <Route path="/profile"        element={<TeacherProfilePage />}  />
+            <Route path="/messages" element={<TeacherMessagesPage />} />
           </Routes>
         </div>
       </main>
