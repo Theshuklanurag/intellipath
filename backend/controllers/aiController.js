@@ -1,199 +1,229 @@
-const { generateAiResponse, generateAiVisionResponse } = require('../services/aiService')
+const aiService = require('../services/aiService')
+const { supabase } = require('../config/db')
 
-const handleChatbot = async (req, res) => {
+exports.chatbot = async (req, res) => {
+  const { prompt } = req.body
+  if (!prompt) return res.status(400).json({ msg: 'Prompt required' })
   try {
-    const { prompt } = req.body
-    if (!prompt) return res.status(400).json({ msg: 'Prompt is required' })
-    const output = await generateAiResponse(prompt, 'You are IntelliPath AI, a helpful academic and career guidance assistant for students.')
+    const output = await aiService.generateResponse(prompt, { maxTokens: 8192 })
     res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Sorry, AI service is unavailable right now.' })
-  }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
 }
 
-const handleSummarizer = async (req, res) => {
+exports.summarize = async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ msg: 'Text required' })
   try {
-    const { text } = req.body
-    if (!text) return res.status(400).json({ msg: 'Text is required' })
-    const output = await generateAiResponse(`Summarize the following text concisely in clear bullet points:\n\n${text}`)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Summarization failed. Please try again.' })
-  }
-}
-
-const handleQuestionGenerator = async (req, res) => {
-  try {
-    const { text } = req.body
-    if (!text) return res.status(400).json({ msg: 'Text is required' })
-    const output = await generateAiResponse(`Based on the following text, generate 5 diverse questions (MCQ, short answer, and analytical) to test deep understanding:\n\n${text}`)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Question generation failed.' })
-  }
-}
-
-const handleNotesGenerator = async (req, res) => {
-  try {
-    const { text } = req.body
-    if (!text) return res.status(400).json({ msg: 'Text is required' })
-    const output = await generateAiResponse(`Create well-structured study notes using Markdown with headings, bullet points, key terms in bold, and examples where helpful:\n\n${text}`)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Notes generation failed.' })
-  }
-}
-
-const handleFlashcards = async (req, res) => {
-  try {
-    const { text } = req.body
-    if (!text) return res.status(400).json({ msg: 'Text is required' })
-    const prompt = `Create 8-10 flashcards from the following text. Return ONLY a valid JSON array like: [{"question": "...", "answer": "..."}]. No extra text.\n\n${text}`
-    const output = await generateAiResponse(prompt)
-    const start = output.indexOf('[')
-    const end = output.lastIndexOf(']')
-    const jsonStr = output.substring(start, end + 1)
-    const flashcards = JSON.parse(jsonStr)
-    res.json({ flashcards })
-  } catch (err) {
-    res.status(500).json({ output: 'Flashcard generation failed.' })
-  }
-}
-
-const handleTimetable = async (req, res) => {
-  try {
-    const { prompt } = req.body
-    if (!prompt) return res.status(400).json({ msg: 'Prompt is required' })
-    const systemPrompt = `You are a timetable generator. Return ONLY a valid JSON object. No markdown, no explanation. Format: {"monday": {"9-10 AM": "Activity"}, ...}. Days: monday-sunday. Slots: 9-10 AM, 10-11 AM, 11-12 PM, 12-1 PM, 1-2 PM, 2-3 PM, 3-4 PM, 4-5 PM.`
-    const output = await generateAiResponse(prompt, systemPrompt)
-    const start = output.indexOf('{')
-    const end = output.lastIndexOf('}')
-    const jsonStr = output.substring(start, end + 1)
-    JSON.parse(jsonStr)
-    res.json({ output: jsonStr })
-  } catch (err) {
-    res.status(500).json({ output: 'Timetable generation failed.' })
-  }
-}
-
-const handleWellbeing = async (req, res) => {
-  try {
-    const data = req.body
-    const prompt = `Analyze this student well-being check-in and give supportive, actionable advice in Markdown:\n
-- Stress Level (1-10): ${data.stressLevel}
-- Sleep Hours: ${data.sleepHours}
-- Focus Level (1-10): ${data.focusLevel}
-- Social Connection (1-10): ${data.connectionLevel}
-- Takes Breaks: ${data.breaksDaily}
-- Balanced Diet: ${data.balancedDiet}
-- Energy Level: ${data.energyLevels}
-- Hobbies: ${data.hobbies}
-- Positive Thing: ${data.positiveThing}
-- Looking Forward To: ${data.lookingForward}`
-    const output = await generateAiResponse(prompt)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Wellbeing analysis failed.' })
-  }
-}
-
-const handleCareerGuidance = async (req, res) => {
-  try {
-    const data = req.body
-    const prompt = `Based on this student profile, give 3 personalized career path recommendations in Markdown with descriptions and why each fits:\n
-- GPA: ${data.gpa}
-- Favourite Subjects: ${data.favSubjects}
-- Skills: ${data.skills}
-- Interests: ${data.interests}
-- Work Preference: ${data.stabilityOrInnovation}
-- Team Role: ${data.teamRole}
-- Work Environment: ${data.workEnvironment}`
-    const output = await generateAiResponse(prompt)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Career guidance failed.' })
-  }
-}
-
-const handleSkillGap = async (req, res) => {
-  try {
-    const { targetRole, currentSkills } = req.body
-    if (!targetRole) return res.status(400).json({ msg: 'Target role is required' })
-    const prompt = `A student wants to become a "${targetRole}". Their current skills are: ${currentSkills || 'none listed'}. 
-Provide a detailed skill gap analysis in Markdown including:
-1. Missing technical skills
-2. Missing soft skills  
-3. Recommended courses/resources for each gap
-4. Estimated time to bridge each gap`
-    const output = await generateAiResponse(prompt)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Skill gap analysis failed.' })
-  }
-}
-
-const handleResumeBuilder = async (req, res) => {
-  try {
-    const data = req.body
-    const prompt = `Create a professional resume in clean Markdown format for:\n
-Name: ${data.fullName}
-Email: ${data.email}
-Career Goal: ${data.careerGoal}
-Education: ${data.education}
-Skills: ${data.skills}
-Projects: ${data.projects}
-Achievements: ${data.achievements}
-Make it ATS-friendly and recruiter-ready.`
-    const output = await generateAiResponse(prompt)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Resume building failed.' })
-  }
-}
-
-const handleMockInterview = async (req, res) => {
-  try {
-    const { role, question, answer } = req.body
-    if (!role) return res.status(400).json({ msg: 'Role is required' })
-    let prompt
-    if (!question) {
-      prompt = `Generate 1 interview question for a "${role}" position. Return ONLY the question, nothing else.`
-    } else {
-      prompt = `You are an interviewer for a "${role}" position. The candidate answered: "${answer}" to the question: "${question}". Give detailed feedback on: 1) What was good, 2) What was missing, 3) A model answer. Format in Markdown.`
-    }
-    const output = await generateAiResponse(prompt)
-    res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Mock interview failed.' })
-  }
-}
-
-const handleImageDoubtSolver = async (req, res) => {
-  try {
-    const { imageBase64, mimeType } = req.body
-    if (!imageBase64) return res.status(400).json({ msg: 'Image is required' })
-    const output = await generateAiVisionResponse(
-      'This is a student question from a textbook or exam paper. Please solve it step by step, explaining each step clearly.',
-      imageBase64,
-      mimeType || 'image/jpeg'
+    const output = await aiService.generateResponse(
+      `Summarize the following text in clear, structured bullet points. Include key concepts, main ideas, and important details:\n\n${text}`,
+      { maxTokens: 4096 }
     )
     res.json({ output })
-  } catch (err) {
-    res.status(500).json({ output: 'Image analysis failed.' })
-  }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
 }
 
-module.exports = {
-  handleChatbot,
-  handleSummarizer,
-  handleQuestionGenerator,
-  handleNotesGenerator,
-  handleFlashcards,
-  handleTimetable,
-  handleWellbeing,
-  handleCareerGuidance,
-  handleSkillGap,
-  handleResumeBuilder,
-  handleMockInterview,
-  handleImageDoubtSolver,
+exports.generateNotes = async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ msg: 'Text required' })
+  try {
+    const output = await aiService.generateResponse(
+      `Generate comprehensive study notes from this content. Format with headings, bullet points, key terms bolded, and examples:\n\n${text}`,
+      { maxTokens: 6144 }
+    )
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.generateFlashcards = async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ msg: 'Text required' })
+  try {
+    const output = await aiService.generateResponse(
+      `Create 15 high-quality flashcards from this content. Return as JSON array only (no other text):\n[{"front":"question","back":"detailed answer"},...]\n\nContent:\n${text}`,
+      { maxTokens: 4096 }
+    )
+    // Try to parse JSON
+    const match = output.match(/\[[\s\S]*\]/)
+    if (match) {
+      res.json({ flashcards: JSON.parse(match[0]) })
+    } else {
+      res.json({ flashcards: [], raw: output })
+    }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.generateQuestions = async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ msg: 'Text required' })
+  try {
+    const output = await aiService.generateResponse(
+      `Generate 20 exam questions (mix of MCQ, short answer, long answer) from:\n\n${text}\n\nFormat:\n**MCQ:**\nQ1. [question]\na) b) c) d)\nAnswer: [x]\n\n**Short Answer:**\nQ11. [question]\nAnswer: [answer]\n\n**Long Answer:**\nQ16. [question]\nAnswer: [detailed answer]`,
+      { maxTokens: 6144 }
+    )
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.generateTimetable = async (req, res) => {
+  const { prompt } = req.body
+  if (!prompt) return res.status(400).json({ msg: 'Prompt required' })
+  try {
+    const output = await aiService.generateResponse(
+      `Create a weekly timetable based on: ${prompt}\n\nReturn ONLY valid JSON (no other text):\n{"monday":{"8-9 AM":"Subject","9-10 AM":"Subject"},"tuesday":{...},...}\n\nDays: monday,tuesday,wednesday,thursday,friday,saturday\nSlots: 8-9 AM, 9-10 AM, 10-11 AM, 11-12 PM, 12-1 PM, 1-2 PM, 2-3 PM, 3-4 PM, 4-5 PM\nLeave empty string "" for free slots.`,
+      { maxTokens: 2048 }
+    )
+    // Parse JSON
+    const match = output.match(/\{[\s\S]*\}/)
+    if (match) {
+      res.json({ output: match[0], timetable: JSON.parse(match[0]) })
+    } else {
+      res.json({ output: '{}', timetable: {} })
+    }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.careerGuidance = async (req, res) => {
+  const { interests, skills, education, goal } = req.body
+  try {
+    const output = await aiService.generateResponse(
+      `You are an expert career counselor. Based on this student profile, suggest EXACTLY 10 career paths in JSON format only (no other text):
+
+Student Profile:
+- Interests: ${interests || 'Not specified'}
+- Skills: ${skills || 'Not specified'}  
+- Education: ${education || 'Not specified'}
+- Goal: ${goal || 'Not specified'}
+
+Return JSON array of exactly 10 careers:
+[
+  {
+    "id": 1,
+    "title": "Career Title",
+    "field": "Industry Field",
+    "description": "2-3 sentence description",
+    "avgSalary": "₹X-Y LPA",
+    "demandLevel": "High/Medium/Low",
+    "timeToAchieve": "X years",
+    "topCompanies": ["Company1","Company2","Company3"],
+    "requiredSkills": ["skill1","skill2","skill3"],
+    "matchScore": 85,
+    "emoji": "🚀"
+  }
+]`,
+      { maxTokens: 4096 }
+    )
+    const match = output.match(/\[[\s\S]*\]/)
+    if (match) {
+      res.json({ careers: JSON.parse(match[0]) })
+    } else {
+      res.json({ careers: [], raw: output })
+    }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.careerRoadmap = async (req, res) => {
+  const { career, currentSkills, education } = req.body
+  if (!career) return res.status(400).json({ msg: 'Career required' })
+  try {
+    const output = await aiService.generateResponse(
+      `Create a COMPLETE and DETAILED career roadmap for becoming a ${career}. Return ONLY valid JSON:
+
+{
+  "career": "${career}",
+  "totalDuration": "X years",
+  "overview": "Brief overview",
+  "phases": [
+    {
+      "id": 1,
+      "title": "Phase Title",
+      "duration": "X months",
+      "description": "Phase description",
+      "steps": [
+        {
+          "id": "1.1",
+          "title": "Step title",
+          "description": "Detailed description",
+          "timeRequired": "X weeks",
+          "resources": ["resource1", "resource2"],
+          "tasks": ["task1", "task2", "task3"],
+          "milestone": "What you achieve",
+          "completed": false
+        }
+      ]
+    }
+  ],
+  "finalOutcome": "What you achieve at the end",
+  "salaryProgression": [
+    {"year": 1, "salary": "₹X LPA", "role": "Junior role"},
+    {"year": 3, "salary": "₹X LPA", "role": "Mid role"},
+    {"year": 5, "salary": "₹X LPA", "role": "Senior role"}
+  ]
+}
+
+Current skills: ${currentSkills || 'Beginner'}
+Education: ${education || 'Graduate'}
+Make it comprehensive with at least 4-5 phases and 3-5 steps per phase.`,
+      { maxTokens: 8192 }
+    )
+    const match = output.match(/\{[\s\S]*\}/)
+    if (match) {
+      res.json({ roadmap: JSON.parse(match[0]) })
+    } else {
+      res.json({ roadmap: null, raw: output })
+    }
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.skillGap = async (req, res) => {
+  const { targetRole, currentSkills } = req.body
+  try {
+    const output = await aiService.generateResponse(
+      `Analyze skill gap for becoming a ${targetRole}. Current skills: ${currentSkills}. Provide detailed JSON analysis:\n{"requiredSkills":[],"missingSkills":[],"existingStrengths":[],"learningPlan":[{"skill":"","resources":"","timeRequired":""}],"overallReadiness":"X%","recommendations":""}`,
+      { maxTokens: 4096 }
+    )
+    const match = output.match(/\{[\s\S]*\}/)
+    res.json({ output: match ? output : output, analysis: match ? JSON.parse(match[0]) : null })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.buildResume = async (req, res) => {
+  try {
+    const output = await aiService.generateResponse(
+      `Create a professional ATS-optimized resume in Markdown based on:\n${JSON.stringify(req.body)}\n\nInclude: Contact, Summary, Skills, Education, Experience, Projects, Certifications. Make it impressive and detailed.`,
+      { maxTokens: 6144 }
+    )
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.mockInterview = async (req, res) => {
+  const { role, question, answer } = req.body
+  try {
+    const prompt = answer
+      ? `You are an expert interviewer for ${role}. Evaluate this answer:\nQuestion: ${question}\nAnswer: ${answer}\n\nProvide: Score (X/10), Strengths, Improvements, Model Answer, Follow-up question`
+      : `Generate 10 challenging interview questions for ${role} with ideal answers. Include HR, Technical, and Behavioral questions.`
+    const output = await aiService.generateResponse(prompt, { maxTokens: 4096 })
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.wellbeing = async (req, res) => {
+  try {
+    const output = await aiService.generateResponse(
+      `Wellbeing counselor analysis:\n${JSON.stringify(req.body)}\n\nProvide compassionate, detailed mental health advice in Markdown.`,
+      { maxTokens: 4096 }
+    )
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
+}
+
+exports.imageDoubt = async (req, res) => {
+  const { question, imageBase64 } = req.body
+  try {
+    const output = await aiService.generateResponse(
+      `Student has a doubt: ${question}\n${imageBase64 ? 'They also provided an image for reference.' : ''}\n\nProvide detailed step-by-step explanation.`,
+      { maxTokens: 4096 }
+    )
+    res.json({ output })
+  } catch (err) { res.status(500).json({ msg: err.message }) }
 }

@@ -10,6 +10,7 @@ const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'))
 const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'))
 const OAuthCallback    = lazy(() => import('./pages/OAuthCallback'))
 const OAuthRolePage    = lazy(() => import('./pages/OAuthRolePage'))
+const ChatHubPage = lazy(() => import('./pages/ChatHubPage'))
 
 const Loader = () => (
   <div style={{
@@ -63,6 +64,7 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/hub" element={<ChatHubPage />} />
       </Routes>
     </Suspense>
   )

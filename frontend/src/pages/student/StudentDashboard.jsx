@@ -65,6 +65,8 @@ const NAV_GROUPS = [
       { path: 'teacher-connect', icon: Users,     label: 'Connect to Teacher' },
     ]
   }
+  // Add to NAV_GROUPS at the bottom of Academics:
+{ path: '/hub', icon: Users, label: 'Community Hub' },
 ]
 
 export default function StudentDashboard() {
@@ -134,6 +136,13 @@ export default function StudentDashboard() {
                   </Link>
                 ))}
               </div>
+              // Add after the last NAV_GROUP in the sidebar
+                <div style={{ borderTop: '1px solid var(--border)', padding: '12px' }}>
+  <Link to="/hub" className="nav-item" style={{ background: 'var(--purple-dim)', color: 'var(--purple)', border: '1px solid rgba(155,89,255,0.2)' }}>
+    <Users className="w-4 h-4" />
+    <span>Community Hub 🌐</span>
+  </Link>
+</div>
             </div>
           ))}
         </nav>
