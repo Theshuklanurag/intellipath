@@ -14,9 +14,9 @@ export default defineConfig({
     }
   },
   build: {
-    outDir:    'dist',
+    outDir: 'dist',
     sourcemap: false,
-    minify:    'terser',
+    minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true,
@@ -25,11 +25,14 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor':   ['react', 'react-dom', 'react-router-dom'],
-          'charts':         ['recharts'],
-          'supabase':       ['@supabase/supabase-js'],
-          'icons':          ['lucide-react'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) return 'react-vendor'
+            if (id.includes('recharts')) return 'charts'
+            if (id.includes('@supabase')) return 'supabase'
+            if (id.includes('lucide-react')) return 'icons'
+            return 'vendor'
+          }
         }
       }
     },
