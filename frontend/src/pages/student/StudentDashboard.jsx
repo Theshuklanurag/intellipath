@@ -39,13 +39,13 @@ const NAV_GROUPS = [
   {
     label: 'AI Study Tools',
     items: [
-      { path: 'chatbot',     icon: MessageSquare, label: 'AI Chatbot'        },
-      { path: 'summarizer',  icon: FileText,      label: 'Summarizer'        },
-      { path: 'notes',       icon: BookOpen,      label: 'Notes Generator'   },
-      { path: 'flashcards',  icon: Layers,        label: 'Flashcards'        },
-      { path: 'quiz',        icon: HelpCircle,    label: 'Quiz Arena'        },
-      { path: 'timetable',   icon: Calendar,      label: 'AI Timetable'      },
-      { path: 'image-doubt', icon: Camera,        label: 'Image Doubt Solver'},
+      { path: 'chatbot',     icon: MessageSquare, label: 'AI Chatbot'         },
+      { path: 'summarizer',  icon: FileText,      label: 'Summarizer'         },
+      { path: 'notes',       icon: BookOpen,      label: 'Notes Generator'    },
+      { path: 'flashcards',  icon: Layers,        label: 'Flashcards'         },
+      { path: 'quiz',        icon: HelpCircle,    label: 'Quiz Arena'         },
+      { path: 'timetable',   icon: Calendar,      label: 'AI Timetable'       },
+      { path: 'image-doubt', icon: Camera,        label: 'Image Doubt Solver' },
     ]
   },
   {
@@ -60,13 +60,11 @@ const NAV_GROUPS = [
   {
     label: 'Academics',
     items: [
-      { path: 'academic',        icon: BarChart2, label: 'Academic Tracker'   },
-      { path: 'wellbeing',       icon: Heart,     label: 'Wellbeing'          },
-      { path: 'teacher-connect', icon: Users,     label: 'Connect to Teacher' },
+      { path: 'academic',         icon: BarChart2, label: 'Academic Tracker'   },
+      { path: 'wellbeing',        icon: Heart,     label: 'Wellbeing'          },
+      { path: 'teacher-connect',  icon: Users,     label: 'Connect to Teacher' },
     ]
   }
-  // Add to NAV_GROUPS at the bottom of Academics:
-{ path: '/hub', icon: Users, label: 'Community Hub' },
 ]
 
 export default function StudentDashboard() {
@@ -100,7 +98,8 @@ export default function StudentDashboard() {
         </div>
 
         {/* User badge */}
-        <div className="px-3 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="px-3 py-3 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl"
             style={{ background: 'var(--cyan-dim)' }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 font-syne"
@@ -116,7 +115,7 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Nav groups */}
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-4">
           {NAV_GROUPS.map(group => (
             <div key={group.label}>
@@ -136,15 +135,28 @@ export default function StudentDashboard() {
                   </Link>
                 ))}
               </div>
-              // Add after the last NAV_GROUP in the sidebar
-                <div style={{ borderTop: '1px solid var(--border)', padding: '12px' }}>
-  <Link to="/hub" className="nav-item" style={{ background: 'var(--purple-dim)', color: 'var(--purple)', border: '1px solid rgba(155,89,255,0.2)' }}>
-    <Users className="w-4 h-4" />
-    <span>Community Hub 🌐</span>
-  </Link>
-</div>
             </div>
           ))}
+
+          {/* Community Hub — separate absolute link */}
+          <div>
+            <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-widest"
+              style={{ color: 'var(--text-muted)' }}>
+              Community
+            </p>
+            <Link
+              to="/hub"
+              onClick={() => setSidebarOpen(false)}
+              className="nav-item"
+              style={location.pathname === '/hub' ? {
+                background: 'var(--purple-dim)',
+                color: 'var(--purple)',
+                borderRight: '2px solid var(--purple)'
+              } : {}}>
+              <Users className="w-4 h-4 flex-shrink-0" />
+              <span>Community Hub 🌐</span>
+            </Link>
+          </div>
         </nav>
 
         {/* Logout */}
@@ -162,7 +174,8 @@ export default function StudentDashboard() {
 
       {/* Overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" style={{ background: 'rgba(0,0,0,0.7)' }}
+        <div className="fixed inset-0 z-40 lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.7)' }}
           onClick={() => setSidebarOpen(false)} />
       )}
 
@@ -176,7 +189,8 @@ export default function StudentDashboard() {
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden btn-ghost">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="hidden lg:flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <div className="hidden lg:flex items-center gap-2 text-xs"
+              style={{ color: 'var(--text-muted)' }}>
               <span style={{ color: 'var(--cyan)' }}>IntelliPath</span>
               <ChevronRight className="w-3 h-3" />
               <span style={{ color: 'var(--text-primary)' }}>Student Portal</span>
@@ -186,7 +200,9 @@ export default function StudentDashboard() {
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
               style={{ background: 'var(--amber-dim)', border: '1px solid rgba(255,184,0,0.2)' }}>
               <Trophy className="w-3.5 h-3.5" style={{ color: 'var(--amber)' }} />
-              <span className="text-xs font-bold font-syne" style={{ color: 'var(--amber)' }}>Level 1</span>
+              <span className="text-xs font-bold font-syne" style={{ color: 'var(--amber)' }}>
+                Student
+              </span>
             </div>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
@@ -195,26 +211,26 @@ export default function StudentDashboard() {
           </div>
         </header>
 
-        {/* Content */}
+        {/* Page content */}
         <div className="flex-1 overflow-y-auto grid-overlay">
           <Routes>
-            <Route path="/"              element={<DashboardHome />}      />
-            <Route path="/progress"      element={<ProgressPage />}       />
-            <Route path="/profile"       element={<ProfilePage />}        />
-            <Route path="/chatbot"       element={<ChatbotPage />}        />
-            <Route path="/summarizer"    element={<SummarizerPage />}     />
-            <Route path="/notes"         element={<NotesPage />}          />
-            <Route path="/flashcards"    element={<FlashcardsPage />}     />
-            <Route path="/quiz"          element={<QuizPage />}           />
-            <Route path="/timetable"     element={<TimetablePage />}      />
-            <Route path="/academic"      element={<AcademicPage />}       />
-            <Route path="/career"        element={<CareerGuidancePage />} />
-            <Route path="/skill-gap"     element={<SkillGapPage />}       />
-            <Route path="/resume"        element={<ResumePage />}         />
-            <Route path="/interview"     element={<MockInterviewPage />}  />
-            <Route path="/wellbeing"     element={<WellbeingPage />}      />
-            <Route path="/image-doubt"   element={<ImageDoubtPage />}     />
-            <Route path="/teacher-connect" element={<TeacherConnectPage />} />
+            <Route path="/"               element={<DashboardHome />}      />
+            <Route path="/progress"       element={<ProgressPage />}       />
+            <Route path="/profile"        element={<ProfilePage />}        />
+            <Route path="/chatbot"        element={<ChatbotPage />}        />
+            <Route path="/summarizer"     element={<SummarizerPage />}     />
+            <Route path="/notes"          element={<NotesPage />}          />
+            <Route path="/flashcards"     element={<FlashcardsPage />}     />
+            <Route path="/quiz"           element={<QuizPage />}           />
+            <Route path="/timetable"      element={<TimetablePage />}      />
+            <Route path="/academic"       element={<AcademicPage />}       />
+            <Route path="/career"         element={<CareerGuidancePage />} />
+            <Route path="/skill-gap"      element={<SkillGapPage />}       />
+            <Route path="/resume"         element={<ResumePage />}         />
+            <Route path="/interview"      element={<MockInterviewPage />}  />
+            <Route path="/wellbeing"      element={<WellbeingPage />}      />
+            <Route path="/image-doubt"    element={<ImageDoubtPage />}     />
+            <Route path="/teacher-connect"element={<TeacherConnectPage />} />
           </Routes>
         </div>
       </main>
